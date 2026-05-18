@@ -7,10 +7,12 @@ import {
   ScrollView,
   Alert,
   SafeAreaView,
+  Platform,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { CameraView, useCameraPermissions } from "expo-camera";
-import { Ionicons } from "@expo/vector-icons";
+import { Camera, CameraType } from "react-native-camera-kit";
+import Ionicons from "@react-native-vector-icons/ionicons";
+import { check, openSettings, PERMISSIONS, request, RESULTS } from "react-native-permissions";
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language } from "../types";
@@ -25,7 +27,9 @@ export function QRScannerScreen({ navigation, route }: Props) {
   const [language, setLanguage] = useState<Language>(route.params.language);
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
-  const [permission, requestPermission] = useCameraPermissions();
+
+  const cameraPermission =
+    Platform.OS === "ios" ? PERMISSIONS.IOS.CAMERA : PERMISSIONS.ANDROID.CAMERA;
 
   const toggleLanguage = () =>
     setLanguage((prev) => (prev === "nl" ? "en" : "nl"));
@@ -48,18 +52,61 @@ export function QRScannerScreen({ navigation, route }: Props) {
     }
   };
 
+  const ensureCameraPermission = async () => {
+    const status = await check(cameraPermission);
+
+    if (status === RESULTS.GRANTED || status === RESULTS.LIMITED) {
+      return true;
+    }
+
+    if (status === RESULTS.BLOCKED) {
+      Alert.alert(
+        language === "nl" ? "Camera vereist" : "Camera required",
+        language === "nl"
+          ? "Geef cameratoegang in de instellingen."
+          : "Please enable camera access in settings.",
+        [
+          { text: language === "nl" ? "Annuleren" : "Cancel", style: "cancel" },
+          {
+            text: language === "nl" ? "Instellingen" : "Settings",
+            onPress: () => {
+              void openSettings();
+            },
+          },
+        ],
+      );
+      return false;
+    }
+
+    if (status === RESULTS.UNAVAILABLE) {
+      Alert.alert(
+        language === "nl" ? "Camera niet beschikbaar" : "Camera unavailable",
+        language === "nl"
+          ? "Deze camera is niet beschikbaar op dit apparaat."
+          : "This camera is not available on this device.",
+      );
+      return false;
+    }
+
+    const nextStatus = await request(cameraPermission);
+
+    if (nextStatus === RESULTS.GRANTED || nextStatus === RESULTS.LIMITED) {
+      return true;
+    }
+
+    Alert.alert(
+      language === "nl" ? "Camera vereist" : "Camera required",
+      language === "nl"
+        ? "Geef cameratoegang in de instellingen."
+        : "Please enable camera access in settings.",
+    );
+    return false;
+  };
+
   const openCamera = async () => {
-    if (!permission?.granted) {
-      const res = await requestPermission();
-      if (!res.granted) {
-        Alert.alert(
-          language === "nl" ? "Camera vereist" : "Camera required",
-          language === "nl"
-            ? "Geef cameratoegang in de instellingen."
-            : "Please enable camera access in settings.",
-        );
-        return;
-      }
+    const hasPermission = await ensureCameraPermission();
+    if (!hasPermission) {
+      return;
     }
     setScanned(false);
     setScanning(true);
@@ -68,11 +115,25 @@ export function QRScannerScreen({ navigation, route }: Props) {
   if (scanning) {
     return (
       <View style={styles.cameraContainer}>
-        <CameraView
+        <Camera
           style={StyleSheet.absoluteFill}
-          facing="back"
-          onBarcodeScanned={scanned ? undefined : handleBarCodeScanned}
-          barcodeScannerSettings={{ barcodeTypes: ["qr"] }}
+          cameraType={CameraType.Back}
+          scanBarcode
+          allowedBarcodeTypes={["qr"]}
+          onReadCode={
+            scanned
+              ? undefined
+              : ({ nativeEvent }) => handleBarCodeScanned({ data: nativeEvent.codeStringValue })
+          }
+          onError={() => {
+            setScanning(false);
+            Alert.alert(
+              language === "nl" ? "Camera fout" : "Camera error",
+              language === "nl"
+                ? "De camera kon niet worden gestart."
+                : "The camera could not be started.",
+            );
+          }}
         />
         {/* Overlay frame */}
         <View style={styles.cameraOverlay}>
@@ -269,7 +330,7 @@ const styles = StyleSheet.create({
   // Camera
   cameraContainer: { flex: 1, backgroundColor: "#000" },
   cameraOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     alignItems: "center",
     justifyContent: "center",
     gap: 20,

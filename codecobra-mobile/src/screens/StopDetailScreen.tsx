@@ -9,10 +9,11 @@ import {
   Dimensions,
   Image,
   SafeAreaView,
+  Alert,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
-import * as Speech from "expo-speech";
+import Ionicons from "@react-native-vector-icons/ionicons";
+import Tts from "react-native-tts";
 import { WebView } from "react-native-webview";
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
@@ -24,9 +25,9 @@ const { height: SCREEN_H } = Dimensions.get("window");
 
 type SpeedKey = "slow" | "normal" | "fast";
 const SPEED_PRESETS: Record<SpeedKey, { rate: number; nl: string; en: string }> = {
-  slow: { rate: 0.75, nl: "Langzaam", en: "Slow" },
-  normal: { rate: 0.9, nl: "Normaal", en: "Normal" },
-  fast: { rate: 1.1, nl: "Snel", en: "Fast" },
+  slow: { rate: 0.4, nl: "Langzaam", en: "Slow" },
+  normal: { rate: 0.55, nl: "Normaal", en: "Normal" },
+  fast: { rate: 0.7, nl: "Snel", en: "Fast" },
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, "StopDetail">;
@@ -64,31 +65,52 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const scrollY = useRef(new Animated.Value(0)).current;
 
   useEffect(() => {
+    const handleFinish = () => setIsSpeaking(false);
+    const handleCancel = () => setIsSpeaking(false);
+    const handleError = () => setIsSpeaking(false);
+
+    Tts.addEventListener("tts-finish", handleFinish);
+    Tts.addEventListener("tts-cancel", handleCancel);
+    Tts.addEventListener("tts-error", handleError);
+    void Tts.getInitStatus()
+      .then(() => Tts.setIgnoreSilentSwitch("ignore"))
+      .catch(() => undefined);
+
     return () => {
-      Speech.stop();
+      Tts.removeEventListener("tts-finish", handleFinish);
+      Tts.removeEventListener("tts-cancel", handleCancel);
+      Tts.removeEventListener("tts-error", handleError);
+      void Tts.stop();
     };
   }, []);
 
   const handleTTS = useCallback(async () => {
     if (isSpeaking) {
-      await Speech.stop();
+      await Tts.stop();
       setIsSpeaking(false);
       return;
     }
     if (!stop) return;
     const text = `${stop.title[language]}. ${stop.description[language]}`;
-    setIsSpeaking(true);
-    Speech.speak(text, {
-      language: language === "nl" ? "nl-NL" : "en-US",
-      rate: SPEED_PRESETS[speed].rate,
-      onDone: () => setIsSpeaking(false),
-      onError: () => setIsSpeaking(false),
-      onStopped: () => setIsSpeaking(false),
-    });
+    try {
+      await Tts.getInitStatus();
+      await Tts.setDefaultLanguage(language === "nl" ? "nl-NL" : "en-US");
+      await Tts.setDefaultRate(SPEED_PRESETS[speed].rate);
+      setIsSpeaking(true);
+      Tts.speak(text);
+    } catch {
+      setIsSpeaking(false);
+      Alert.alert(
+        language === "nl" ? "Spraak niet beschikbaar" : "Speech unavailable",
+        language === "nl"
+          ? "Tekst-naar-spraak kon niet worden gestart."
+          : "Text-to-speech could not be started.",
+      );
+    }
   }, [isSpeaking, stop, language, speed]);
 
   const handleBack = () => {
-    Speech.stop();
+    void Tts.stop();
     navigation.goBack();
   };
 
