@@ -1,6 +1,6 @@
 import { NavigationContainer } from "@react-navigation/native";
 import { createNativeStackNavigator } from "@react-navigation/native-stack";
-import { StatusBar } from "expo-status-bar";
+import { StatusBar } from "react-native";
 import { AppProvider } from "./src/context/AppContext";
 import { StartScreen } from "./src/screens/StartScreen";
 import { QRScannerScreen } from "./src/screens/QRScannerScreen";
@@ -25,7 +25,7 @@ export default function App() {
   return (
     <AppProvider>
       <NavigationContainer>
-        <StatusBar style="light" />
+        <StatusBar barStyle="light-content" />
         <Stack.Navigator
           initialRouteName="Start"
           screenOptions={{ headerShown: false, animation: "slide_from_right" }}

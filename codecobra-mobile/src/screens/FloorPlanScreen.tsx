@@ -9,7 +9,7 @@ import {
   Dimensions,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons";
 import Svg, { Circle, Text as SvgText, Rect, Line } from "react-native-svg";
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";

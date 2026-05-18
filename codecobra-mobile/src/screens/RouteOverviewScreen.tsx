@@ -8,7 +8,7 @@ import {
   SafeAreaView,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
-import { Ionicons } from "@expo/vector-icons";
+import Ionicons from "@react-native-vector-icons/ionicons";
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Stop } from "../types";
