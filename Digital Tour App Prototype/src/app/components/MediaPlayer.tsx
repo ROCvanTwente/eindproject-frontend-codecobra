@@ -376,7 +376,10 @@ export function MediaPlayer({
                 language === "nl" ? "Tijdlijn" : "Timeline"
               }
               style={{
-                background: `linear-gradient(to right, #E30613 0%, #E30613 ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) ${(currentTime / duration) * 100}%, rgba(255,255,255,0.2) 100%)`,
+                background: (() => {
+                  const pct = duration > 0 ? (currentTime / duration) * 100 : 0;
+                  return `linear-gradient(to right, #E30613 0%, #E30613 ${pct}%, rgba(255,255,255,0.2) ${pct}%, rgba(255,255,255,0.2) 100%)`;
+                })(),
               }}
             />
             <div className="flex justify-between text-white text-lg mt-2">

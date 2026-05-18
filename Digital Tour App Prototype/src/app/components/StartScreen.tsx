@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Language } from "../types";
 import {
   VoiceGender,
@@ -28,13 +28,17 @@ export function StartScreen({
     onStart(language, voice);
   };
 
-  const bgStyle = backgroundImage
-    ? {
-        backgroundImage: `linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }
-    : undefined;
+  const bgStyle = useMemo(
+    () =>
+      backgroundImage
+        ? {
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.85), rgba(255,255,255,0.85)), url(${backgroundImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }
+        : undefined,
+    [backgroundImage],
+  );
 
   return (
     <div

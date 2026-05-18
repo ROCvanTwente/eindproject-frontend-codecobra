@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowLeft,
   Navigation,
@@ -63,10 +63,9 @@ export function FloorPlan({
   onBack,
 }: FloorPlanProps) {
   // Stops die een positie op de plattegrond hebben worden als rood bolletje getoond.
-  const photoStops = stops.filter(
-    (s) =>
-      typeof s.mapX === "number" &&
-      typeof s.mapY === "number",
+  const photoStops = useMemo(
+    () => stops.filter((s) => typeof s.mapX === "number" && typeof s.mapY === "number"),
+    [stops],
   );
 
   // Photo mode: index of the selected red dot, or null.
@@ -269,34 +268,30 @@ export function FloorPlan({
   const zoomScale = PHOTO_VIEWBOX.w / view.w;
   const k = 1 / zoomScale; // schaalfactor om elementgrootte stabiel te houden
 
+  // ── Memoised BFS route ─────────────────────────────────────────────────
+  // Computed once per destination change instead of twice per render.
+  const routePoints = useMemo(() => {
+    if (photoDestIdx === null || !photoStops[photoDestIdx]) return null;
+    const target = photoStops[photoDestIdx];
+    return photoRoute(PHOTO_ENTRY, { x: target.mapX!, y: target.mapY! });
+  }, [photoDestIdx, photoStops]);
+
   // ── Heading-up rotatie ─────────────────────────────────────────────────
   // Bereken een rotatie zodat de eerste route-stap recht omhoog wijst. Als er
   // geen route is, blijft de rotatie 0.
-  const headingDeg = (() => {
-    if (
-      photoDestIdx === null ||
-      !photoStops[photoDestIdx]
-    )
-      return 0;
-    const target = photoStops[photoDestIdx];
-    const pts = photoRoute(PHOTO_ENTRY, {
-      x: target.mapX!,
-      y: target.mapY!,
-    });
-    // Eerste punt is PHOTO_ENTRY, kies een waypoint verderop voor een
-    // stabielere richtingsbepaling.
-    const a = pts[0];
+  const headingDeg = useMemo(() => {
+    if (!routePoints) return 0;
+    const a = routePoints[0];
     const b =
-      pts.find(
-        (p) => Math.hypot(p.x - a.x, p.y - a.y) > 40,
-      ) || pts[pts.length - 1];
+      routePoints.find((p) => Math.hypot(p.x - a.x, p.y - a.y) > 40) ||
+      routePoints[routePoints.length - 1];
     const dx = b.x - a.x;
     const dy = b.y - a.y;
     // atan2(dy, dx) → 0° wijst naar rechts. We willen dat de
     // bewegingsrichting omhoog wijst, dus draai zó dat de vector op −90° komt.
     const ang = (Math.atan2(dy, dx) * 180) / Math.PI;
     return -90 - ang;
-  })();
+  }, [routePoints]);
   const rotateDeg = navMode ? headingDeg : 0;
 
   useEffect(() => {
@@ -495,31 +490,18 @@ export function FloorPlan({
               )}
 
               {/* Route polyline via the gray corridor spine */}
-              {imgState === "ready" &&
-                photoDestIdx !== null &&
-                photoStops[photoDestIdx] &&
-                (() => {
-                  const target = photoStops[photoDestIdx];
-                  const pts = photoRoute(PHOTO_ENTRY, {
-                    x: target.mapX!,
-                    y: target.mapY!,
-                  });
-                  const str = pts
-                    .map((p) => `${p.x},${p.y}`)
-                    .join(" ");
-                  return (
-                    <polyline
-                      points={str}
-                      fill="none"
-                      stroke="#0066B3"
-                      strokeWidth={8 * k}
-                      strokeDasharray={`${18 * k} ${12 * k}`}
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      className="animate-route"
-                    />
-                  );
-                })()}
+              {imgState === "ready" && routePoints && (
+                <polyline
+                  points={routePoints.map((p) => `${p.x},${p.y}`).join(" ")}
+                  fill="none"
+                  stroke="#0066B3"
+                  strokeWidth={8 * k}
+                  strokeDasharray={`${18 * k} ${12 * k}`}
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  className="animate-route"
+                />
+              )}
 
               {/* Hotspots — één per stop met een positie op de plattegrond */}
               {imgState === "ready" && photoStops.map((stop, idx) => {

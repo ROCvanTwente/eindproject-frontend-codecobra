@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { QrCode, Map, MapPin, Settings } from "lucide-react";
 import { Language, Stop } from "../types";
 import { TriangleDecoration } from "./TriangleDecoration";
@@ -23,14 +24,18 @@ export function QRScanner({
   onToggleLanguage,
   backgroundImage,
 }: QRScannerProps) {
-  const bgStyle = backgroundImage
-    ? {
-        backgroundImage: `linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.88)), url(${backgroundImage})`,
-        backgroundSize: "cover",
-        backgroundPosition: "center",
-      }
-    : undefined;
-  const demoStops = stops.filter((s) => s.qrCode);
+  const bgStyle = useMemo(
+    () =>
+      backgroundImage
+        ? {
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.88), rgba(255,255,255,0.88)), url(${backgroundImage})`,
+            backgroundSize: "cover",
+            backgroundPosition: "center",
+          }
+        : undefined,
+    [backgroundImage],
+  );
+  const demoStops = useMemo(() => stops.filter((s) => s.qrCode), [stops]);
 
   return (
     <div

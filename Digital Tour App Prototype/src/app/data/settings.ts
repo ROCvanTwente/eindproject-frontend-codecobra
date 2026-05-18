@@ -282,9 +282,10 @@ export function addHistory(
   action: string,
   target: string,
 ): AdminSettings {
+  const now = Date.now();
   const entry: HistoryEntry = {
-    id: Date.now(),
-    timestamp: Date.now(),
+    id: now,
+    timestamp: now,
     actor,
     action,
     target,

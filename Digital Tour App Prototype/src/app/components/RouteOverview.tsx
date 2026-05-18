@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { useMemo, useRef } from "react";
 import {
   ArrowLeft,
   ChevronRight,
@@ -22,6 +22,10 @@ export function RouteOverview({
   onSelectStop,
 }: RouteOverviewProps) {
   const listRef = useRef<HTMLDivElement>(null);
+  const totalDuration = useMemo(
+    () => stops.reduce((sum, s) => sum + s.estimatedDuration, 0),
+    [stops],
+  );
 
   return (
     <div className="min-h-screen bg-gray-50 flex flex-col">
@@ -123,8 +127,8 @@ export function RouteOverview({
         <div className="mt-6 bg-green-50 rounded-2xl p-5 border-2 border-green-200 text-center">
           <p className="text-xl text-green-800">
             {language === "nl"
-              ? `✓ Totale rondleiding: ~${stops.reduce((sum, s) => sum + s.estimatedDuration, 0)} minuten`
-              : `✓ Total tour: ~${stops.reduce((sum, s) => sum + s.estimatedDuration, 0)} minutes`}
+              ? `✓ Totale rondleiding: ~${totalDuration} minuten`
+              : `✓ Total tour: ~${totalDuration} minutes`}
           </p>
         </div>
       </div>
