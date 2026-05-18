@@ -1,6 +1,12 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { AdminSettings, loadSettings } from "./data/settings";
 import { Language, Stop } from "./types";
+import { StopDetail } from "./components/StopDetail";
+import { QRScanner } from "./components/QRScanner";
+import { FloorPlan } from "./components/FloorPlan";
+import { RouteOverview } from "./components/RouteOverview";
+import { AdminPanel } from "./components/AdminPanel";
+import { StartScreen } from "./components/StartScreen";
 
 const STOPS_KEY = "gieterij-stops-v2";
 const loadStops = (): Stop[] => {
@@ -20,18 +26,9 @@ const loadStops = (): Stop[] => {
 };
 const saveStops = (stops: Stop[]) => {
   try {
-    window.localStorage.setItem(
-      STOPS_KEY,
-      JSON.stringify(stops),
-    );
+    window.localStorage.setItem(STOPS_KEY, JSON.stringify(stops));
   } catch {}
 };
-import { StopDetail } from "./components/StopDetail";
-import { QRScanner } from "./components/QRScanner";
-import { FloorPlan } from "./components/FloorPlan";
-import { RouteOverview } from "./components/RouteOverview";
-import { AdminPanel } from "./components/AdminPanel";
-import { StartScreen } from "./components/StartScreen";
 
 type View =
   | "start"
@@ -75,42 +72,53 @@ export default function App() {
     if (currentView !== "admin") setSettings(loadSettings());
   }, [currentView]);
 
-  const toggleLanguage = () =>
-    setLanguage((prev) => (prev === "nl" ? "en" : "nl"));
+  const toggleLanguage = useCallback(
+    () => setLanguage((prev) => (prev === "nl" ? "en" : "nl")),
+    [],
+  );
 
   /** Called when a QR code is scanned from the scanner screen. */
-  const handleQRScan = (qrCode: string) => {
-    const stop = stops.find((s) => s.qrCode === qrCode);
-    if (stop) {
-      setReturnView("scanner");
-      setSelectedStop(stop);
-      setCurrentView("detail");
-      window.scrollTo({ top: 0 });
-    }
-  };
+  const handleQRScan = useCallback(
+    (qrCode: string) => {
+      const stop = stops.find((s) => s.qrCode === qrCode);
+      if (stop) {
+        setReturnView("scanner");
+        setSelectedStop(stop);
+        setCurrentView("detail");
+        window.scrollTo({ top: 0 });
+      }
+    },
+    [stops],
+  );
 
   /** Called when a stop is tapped in the route overview. */
-  const handleSelectStop = (stop: Stop) => {
+  const handleSelectStop = useCallback((stop: Stop) => {
     setReturnView("map");
     setSelectedStop(stop);
     setCurrentView("detail");
     window.scrollTo({ top: 0 });
-  };
+  }, []);
 
   /** Back button in StopDetail — goes to wherever we came from. */
-  const handleBackFromDetail = () => {
+  const handleBackFromDetail = useCallback(() => {
     setSelectedStop(null);
     setCurrentView(returnView);
     window.scrollTo({ top: 0 });
-  };
+  }, [returnView]);
 
-  const handleShowMap = () => setCurrentView("map");
-  const handleShowFloorPlan = () => setCurrentView("floorplan");
-  const handleShowAdmin = () => setCurrentView("admin");
-  const handleBackToScanner = () => {
+  const handleShowMap = useCallback(() => setCurrentView("map"), []);
+  const handleShowFloorPlan = useCallback(() => setCurrentView("floorplan"), []);
+  const handleShowAdmin = useCallback(() => setCurrentView("admin"), []);
+  const handleBackToScanner = useCallback(() => {
     setCurrentView("scanner");
     setSelectedStop(null);
-  };
+  }, []);
+
+  const stopIndex = useMemo(
+    () => (selectedStop ? stops.findIndex((s) => s.id === selectedStop.id) : -1),
+    [stops, selectedStop],
+  );
+  const isLastStop = stopIndex === stops.length - 1;
 
   // ── Views ──────────────────────────────────────────────────────────────────
 
@@ -142,10 +150,6 @@ export default function App() {
   }
 
   if (currentView === "detail" && selectedStop) {
-    const stopIndex = stops.findIndex(
-      (s) => s.id === selectedStop.id,
-    );
-    const isLastStop = stopIndex === stops.length - 1;
     return (
       <StopDetail
         stop={selectedStop}

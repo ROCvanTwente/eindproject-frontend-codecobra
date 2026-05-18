@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import {
   ArrowLeft,
   Pause,
@@ -93,26 +93,26 @@ export function StopDetail({
   // ── hulpfuncties ─────────────────────────────────────────────────────────
 
   /** Schrijf de translateY direct naar de DOM — geen React state-update nodig. */
-  const applyY = (y: number) => {
+  const applyY = useCallback((y: number) => {
     if (contentRef.current) {
       contentRef.current.style.transform = `translateY(-${y}px)`;
     }
-  };
+  }, []);
 
   /** Maximale offset = hoogte content − hoogte container. */
-  const getMaxOffset = (): number => {
+  const getMaxOffset = useCallback((): number => {
     const cont = containerRef.current;
     const inner = contentRef.current;
     if (!cont || !inner) return 0;
     return Math.max(0, inner.offsetHeight - cont.clientHeight);
-  };
+  }, []);
 
-  const stopAutoScroll = () => {
+  const stopAutoScroll = useCallback(() => {
     if (intervalRef.current !== null) {
       clearInterval(intervalRef.current);
       intervalRef.current = null;
     }
-  };
+  }, []);
 
   /**
    * Start tijdgebaseerde animatie via setInterval.
@@ -164,7 +164,7 @@ export function StopDetail({
       window.speechSynthesis.cancel();
       setIsSpeaking(false);
     }
-  }, [stop.id]);
+  }, [stop.id, stopAutoScroll, applyY]);
 
   // ── cleanup bij unmount ───────────────────────────────────────────────────
 
@@ -174,7 +174,7 @@ export function StopDetail({
       if (window.speechSynthesis)
         window.speechSynthesis.cancel();
     };
-  }, []);
+  }, [stopAutoScroll]);
 
   // ── handlers ──────────────────────────────────────────────────────────────
 
