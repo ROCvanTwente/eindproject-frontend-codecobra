@@ -1,5 +1,22 @@
 export type Language = "nl" | "en";
 
+export type SectionKey =
+  | "home"
+  | "stops"
+  | "theme"
+  | "textSpeech"
+  | "accounts"
+  | "qr"
+  | "scavenger"
+  | "stats"
+  | "media"
+  | "history"
+  | "manualAdmin"
+  | "manualUser"
+  | "start"
+  | "battery"
+  | "background";
+
 export interface Stop {
   id: number;
   qrCode: string;
@@ -31,4 +48,9 @@ export interface Stop {
 export interface TourData {
   stops: Stop[];
   totalDuration: number;
+}
+
+export interface UserSession {
+  username: string;
+  role: "admin" | "user";
 }
