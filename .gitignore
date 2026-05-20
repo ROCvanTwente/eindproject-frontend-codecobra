@@ -1,0 +1,76 @@
+# Dependencies
+node_modules/
+yarn.lock
+package-lock.json
+pnpm-lock.yaml
+.pnpm-store/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Build outputs
+dist/
+build/
+.next/
+out/
+
+# React Native / Android
+codecobra-mobile/android/app/build/
+codecobra-mobile/android/.gradle/
+codecobra-mobile/android/**/*.iml
+codecobra-mobile/android/local.properties
+codecobra-mobile/android/gradlew
+codecobra-mobile/android/gradlew.bat
+
+# React Native / iOS
+codecobra-mobile/ios/Pods/
+codecobra-mobile/ios/Podfile.lock
+codecobra-mobile/ios/.xcode.env.local
+codecobra-mobile/ios/build/
+
+# Xcode
+*.xcworkspace/
+*.xcuserstate
+*.xcodeproj/xcuserdata/
+*.xcodeproj/project.xcworkspace/xcuserdata/
+
+# Metro bundler
+codecobra-mobile/.metro-health-check-result
+
+# IDE / Editor
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+*.sublime-project
+*.sublime-workspace
+.DS_Store
+Thumbs.db
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Temporary files
+*.log
+*.tmp
+*.temp
+.cache/
+
+# Testing
+coverage/
+.nyc_output/
+
+# Local development
+.env.local.backup
+
+# Track codecobra-mobile patches
+!codecobra-mobile/patches/
+!codecobra-mobile/patches/**

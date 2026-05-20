@@ -19,3 +19,11 @@ buildscript {
 }
 
 apply plugin: "com.facebook.react.rootproject"
+
+// Added to inject valid repositories into third-party modules
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
