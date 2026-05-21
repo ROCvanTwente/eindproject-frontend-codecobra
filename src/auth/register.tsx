@@ -23,7 +23,6 @@ const Register: React.FC = () => {
     e.preventDefault();
     setError('');
     setSuccess('');
-
     const pwErrors = validatePassword(password);
     if (pwErrors.length > 0) {
       setError('Wachtwoord voldoet niet aan eisen:\n' + pwErrors.join('\n'));
@@ -36,25 +35,38 @@ const Register: React.FC = () => {
     }
 
     setLoading(true);
+    // allow base URL override using Vite env var `VITE_API_URL`
+    const API_BASE = (import.meta as any).env?.VITE_API_URL || 'https://localhost:7199';
     try {
-      const res = await fetch('https://localhost:7199/register', {
+      const res = await fetch(`${API_BASE.replace(/\/$/, '')}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: "include",
         body: JSON.stringify({ email, password }),
       });
 
+      const data = await res.json().catch(() => ({}));
+
       if (res.ok) {
+        // If backend returns an access token, sign in immediately
+        if (data?.accessToken) {
+          localStorage.setItem('token', data.accessToken);
+          window.location.href = '/';
+          return;
+        }
+
         setSuccess('Account aangemaakt! Je wordt doorgestuurd...');
         setEmail('');
         setPassword('');
         setConfirmPassword('');
-        setTimeout(() => (window.location.href = '/login'), 1500);
+        setTimeout(() => (window.location.href = '/login'), 1200);
       } else {
-        const data = await res.json().catch(() => ({}));
-        setError(data.message || data.title || 'Registratie mislukt.');
+        // Aggregate possible error fields
+        const errMsg = data?.message || data?.title || (data?.errors ? Object.values(data.errors).flat().join(' | ') : null);
+        setError(errMsg || 'Registratie mislukt.');
       }
     } catch (err) {
-      setError('Fout bij verbinden met backend. Controleer of de API op https://localhost:7199 draait.');
+      setError('Fout bij verbinden met backend. Controleer of de API draait en de CORS-instellingen correct zijn.');
     } finally {
       setLoading(false);
     }
@@ -141,7 +153,7 @@ const Register: React.FC = () => {
 
             <button
               type="submit"
-              disabled={loading || pwFeedback.length > 0}
+              disabled={loading || pwFeedback.length > 0 || !email}
               className="w-full py-2 bg-black text-white rounded-md disabled:opacity-50"
             >
               {loading ? 'Bezig...' : 'Account aanmaken'}
