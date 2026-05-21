@@ -1,12 +1,8 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
-import { AdminSettings, loadSettings } from "./data/settings";
-import { Language, Stop } from "./types";
-import { StopDetail } from "./components/StopDetail";
-import { QRScanner } from "./components/QRScanner";
-import { FloorPlan } from "./components/FloorPlan";
-import { RouteOverview } from "./components/RouteOverview";
+import { AdminSettings, loadSettings, saveSettings } from "./data/settings";
+import { Language, Stop, UserSession } from "./types";
 import { AdminPanel } from "./components/AdminPanel";
-import { StartScreen } from "./components/StartScreen";
+import { LoginScreen } from "./components/LoginScreen";
 
 const STOPS_KEY = "gieterij-stops-v2";
 const loadStops = (): Stop[] => {
@@ -30,27 +26,30 @@ const saveStops = (stops: Stop[]) => {
   } catch {}
 };
 
-type View =
-  | "start"
-  | "scanner"
-  | "detail"
-  | "map"
-  | "floorplan"
-  | "admin";
+type View = "login" | "admin";
 
 export default function App() {
   const [language, setLanguage] = useState<Language>("nl");
-  const [selectedStop, setSelectedStop] = useState<Stop | null>(
-    null,
-  );
-  const [currentView, setCurrentView] = useState<View>("start");
-  // Track where to return to when leaving a stop detail
-  const [returnView, setReturnView] = useState<View>("scanner");
-  // Editable stops data
+  const [view, setView] = useState<View>("login");
   const [stops, setStops] = useState<Stop[]>(() => loadStops());
   const [settings, setSettings] = useState<AdminSettings>(() =>
     loadSettings(),
   );
+
+  const handleUpdateSettings = (
+    patch: Partial<AdminSettings>,
+    logAction?: { action: string; target: string },
+  ) => {
+    setSettings((prev) => {
+      const next = { ...prev, ...patch };
+      // if (logAction) {
+      //   const actor = prev.currentSession?.username ?? "anoniem";
+      //   next = addHistory(next, actor, logAction.action, logAction.target);
+      // }
+      saveSettings(next);
+      return next;
+    });
+  };
 
   useEffect(() => {
     saveStops(stops);
@@ -69,131 +68,64 @@ export default function App() {
 
   // Re-read settings whenever we return from admin so visitor screens see updates.
   useEffect(() => {
-    if (currentView !== "admin") setSettings(loadSettings());
-  }, [currentView]);
-
-  const toggleLanguage = useCallback(
-    () => setLanguage((prev) => (prev === "nl" ? "en" : "nl")),
-    [],
-  );
-
-  /** Called when a QR code is scanned from the scanner screen. */
-  const handleQRScan = useCallback(
-    (qrCode: string) => {
-      const stop = stops.find((s) => s.qrCode === qrCode);
-      if (stop) {
-        setReturnView("scanner");
-        setSelectedStop(stop);
-        setCurrentView("detail");
-        window.scrollTo({ top: 0 });
-      }
-    },
-    [stops],
-  );
-
-  /** Called when a stop is tapped in the route overview. */
-  const handleSelectStop = useCallback((stop: Stop) => {
-    setReturnView("map");
-    setSelectedStop(stop);
-    setCurrentView("detail");
-    window.scrollTo({ top: 0 });
-  }, []);
-
-  /** Back button in StopDetail — goes to wherever we came from. */
-  const handleBackFromDetail = useCallback(() => {
-    setSelectedStop(null);
-    setCurrentView(returnView);
-    window.scrollTo({ top: 0 });
-  }, [returnView]);
-
-  const handleShowMap = useCallback(() => setCurrentView("map"), []);
-  const handleShowFloorPlan = useCallback(() => setCurrentView("floorplan"), []);
-  const handleShowAdmin = useCallback(() => setCurrentView("admin"), []);
-  const handleBackToScanner = useCallback(() => {
-    setCurrentView("scanner");
-    setSelectedStop(null);
-  }, []);
-
-  const stopIndex = useMemo(
-    () => (selectedStop ? stops.findIndex((s) => s.id === selectedStop.id) : -1),
-    [stops, selectedStop],
-  );
-  const isLastStop = stopIndex === stops.length - 1;
+    if (view !== "admin") setSettings(loadSettings());
+  }, [view]);
 
   // ── Views ──────────────────────────────────────────────────────────────────
 
-  if (currentView === "start") {
+  if (view === "login") {
     return (
-      <StartScreen
-        backgroundImage={settings.homeBackground}
-        onStart={(lang) => {
-          setLanguage(lang);
-          setCurrentView("scanner");
+      <LoginScreen
+        settings={settings}
+        onLogin={(session: UserSession) => {
+          handleUpdateSettings({ currentSession: session });
+          setView("admin");
+        }}
+        onBack={() => {
+          /* No-op: there's no start/visitor view in this build */
         }}
       />
     );
   }
 
-  if (currentView === "scanner") {
-    return (
-      <QRScanner
-        language={language}
-        stops={stops}
-        backgroundImage={settings.homeBackground}
-        onScan={handleQRScan}
-        onShowMap={handleShowMap}
-        onShowFloorPlan={handleShowFloorPlan}
-        onShowAdmin={handleShowAdmin}
-        onToggleLanguage={toggleLanguage}
-      />
-    );
-  }
-
-  if (currentView === "detail" && selectedStop) {
-    return (
-      <StopDetail
-        stop={selectedStop}
-        language={language}
-        onBackToScanner={handleBackFromDetail}
-        currentStopNumber={stopIndex + 1}
-        totalStops={stops.length}
-        isLastStop={isLastStop}
-      />
-    );
-  }
-
-  if (currentView === "map") {
-    return (
-      <RouteOverview
-        language={language}
-        stops={stops}
-        onBack={handleBackToScanner}
-        onSelectStop={handleSelectStop}
-      />
-    );
-  }
-
-  if (currentView === "floorplan") {
-    return (
-      <FloorPlan
-        language={language}
-        stops={stops}
-        onBack={handleBackToScanner}
-      />
-    );
-  }
-
-  if (currentView === "admin") {
+  if (view === "admin") {
+    if (!settings.currentSession) {
+      return (
+        <LoginScreen
+          settings={settings}
+          onLogin={(session: UserSession) => {
+            handleUpdateSettings({ currentSession: session });
+            setView("admin");
+          }}
+          onBack={() => {
+            /* No-op */
+          }}
+        />
+      );
+    }
     return (
       <AdminPanel
         stops={stops}
         language={language}
         onUpdateStops={setStops}
-        onBack={handleBackToScanner}
+        onBack={() => setView("login")}
+        settings={settings}
+        onUpdateSettings={handleUpdateSettings}
       />
     );
   }
 
-  // Fallback
-  return null;
+  // Fallback: show login
+  return (
+    <LoginScreen
+      settings={settings}
+      onLogin={(session: UserSession) => {
+        handleUpdateSettings({ currentSession: session });
+        setView("admin");
+      }}
+      onBack={() => {
+        /* No-op */
+      }}
+    />
+  );
 }
