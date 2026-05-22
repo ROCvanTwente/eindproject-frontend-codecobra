@@ -1,8 +1,10 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AdminSettings, loadSettings, saveSettings } from "./data/settings";
 import { Language, Stop, UserSession } from "./types";
 import { AdminPanel } from "./components/AdminPanel";
 import { LoginScreen } from "./components/LoginScreen";
+import { RegisterScreen } from "./components/RegisterScreen";
+import { useLocation, useNavigate } from "react-router-dom";
 
 const STOPS_KEY = "gieterij-stops-v2";
 const loadStops = (): Stop[] => {
@@ -26,7 +28,7 @@ const saveStops = (stops: Stop[]) => {
   } catch {}
 };
 
-type View = "login" | "admin";
+type View = "login" | "register" | "admin";
 
 export default function App() {
   const [language, setLanguage] = useState<Language>("nl");
@@ -35,6 +37,8 @@ export default function App() {
   const [settings, setSettings] = useState<AdminSettings>(() =>
     loadSettings(),
   );
+  const navigate = useNavigate();
+  const location = useLocation();
 
   const handleUpdateSettings = (
     patch: Partial<AdminSettings>,
@@ -71,6 +75,36 @@ export default function App() {
     if (view !== "admin") setSettings(loadSettings());
   }, [view]);
 
+  useEffect(() => {
+    if (location.pathname === "/register") {
+      setView("register");
+      return;
+    }
+
+    if (location.pathname === "/admin") {
+      setView("admin");
+      return;
+    }
+
+    setView("login");
+  }, [location.pathname]);
+
+  const goToLogin = () => {
+    setView("login");
+    navigate("/login", { replace: true });
+  };
+
+  const goToRegister = () => {
+    setView("register");
+    navigate("/register", { replace: true });
+  };
+
+  const goToAdmin = (session: UserSession) => {
+    handleUpdateSettings({ currentSession: session });
+    setView("admin");
+    navigate("/admin", { replace: true });
+  };
+
   // ── Views ──────────────────────────────────────────────────────────────────
 
   if (view === "login") {
@@ -78,12 +112,23 @@ export default function App() {
       <LoginScreen
         settings={settings}
         onLogin={(session: UserSession) => {
-          handleUpdateSettings({ currentSession: session });
-          setView("admin");
+          goToAdmin(session);
         }}
         onBack={() => {
           /* No-op: there's no start/visitor view in this build */
         }}
+      />
+    );
+  }
+
+  if (view === "register") {
+    return (
+      <RegisterScreen
+        settings={settings}
+        onRegister={(session: UserSession) => {
+          goToAdmin(session);
+        }}
+        onBack={goToLogin}
       />
     );
   }
@@ -94,8 +139,7 @@ export default function App() {
         <LoginScreen
           settings={settings}
           onLogin={(session: UserSession) => {
-            handleUpdateSettings({ currentSession: session });
-            setView("admin");
+            goToAdmin(session);
           }}
           onBack={() => {
             /* No-op */
@@ -108,7 +152,7 @@ export default function App() {
         stops={stops}
         language={language}
         onUpdateStops={setStops}
-        onBack={() => setView("login")}
+        onBack={goToLogin}
         settings={settings}
         onUpdateSettings={handleUpdateSettings}
       />
@@ -120,8 +164,7 @@ export default function App() {
     <LoginScreen
       settings={settings}
       onLogin={(session: UserSession) => {
-        handleUpdateSettings({ currentSession: session });
-        setView("admin");
+        goToAdmin(session);
       }}
       onBack={() => {
         /* No-op */
