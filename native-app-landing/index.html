@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Download Digital Tour App</title>
+    <title>Download Rondleiding App - De Gieterij</title>
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
     <style>
         .hidden { display: none; }
@@ -12,64 +12,118 @@
             from { opacity: 0; }
             to { opacity: 1; }
         }
+        /* Custom styles for background overlay */
+        .bg-campus {
+            /* Fallback campus building image */
+            background-image: url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        /* Lichte (light) blur layer voor leesbaarheid */
+        .backdrop-light {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
     </style>
 </head>
-<body class="bg-gray-100 flex items-center justify-center min-h-screen font-sans">
-    <div class="bg-white p-8 rounded-2xl shadow-xl max-w-md w-full text-center">
-        <!-- Header -->
-        <h1 class="text-3xl font-bold text-gray-800 mb-2">Digital Tour App</h1>
-        <p class="text-gray-500 mb-8">React Native & ASP.NET Core API</p>
+<body class="bg-campus relative min-h-screen h-screen overflow-hidden font-sans flex items-center justify-center p-4">
+    <!-- Achtergrond overlay -->
+    <div class="absolute inset-0 backdrop-light z-0 overflow-hidden"></div>
 
-        <!-- Placeholder Image/Icon -->
-        <div class="bg-blue-50 text-blue-500 rounded-full h-32 w-32 flex items-center justify-center mx-auto mb-8">
-            <svg class="h-16 w-16" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+    <div class="relative z-10 bg-white p-6 md:p-8 rounded-3xl shadow-2xl max-w-lg w-full text-center border border-gray-100 max-h-[90vh] flex flex-col">
+        <!-- Scrollable inner container -->
+        <div class="overflow-y-auto no-scrollbar pb-2 pt-2">
+            <!-- Header -->
+        <h1 class="text-3xl font-bold text-gray-800 mb-1">Rondleiding App</h1>
+        <p class="text-red-600 font-bold mb-6 tracking-wide uppercase text-sm">ROC van Twente — De Gieterij</p>
+
+        <!-- Placeholder Image/Icon (Location pinpoint) -->
+        <div class="bg-red-50 text-red-600 rounded-full h-24 w-24 flex items-center justify-center mx-auto mb-8 border border-red-100 shadow-sm">
+            <svg class="h-12 w-12" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
             </svg>
         </div>
 
         <!-- Initial Status -->
         <div id="initial-state" class="fade-in">
-            <p class="text-gray-600 mb-6">Ervaar onze applicatie in zijn volledige native vorm. Met een simpele klik download en installeer je de app op jouw apparaat.</p>
-            <button id="download-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200">
+            <p class="text-gray-600 mb-8 text-sm leading-relaxed px-2">
+                Welkom bij ROC van Twente in Hengelo! Ontdek ons gebouw De Gieterij op je eigen tempo met onze interactieve prototype applicatie. Loop de route en lees of luister naar de tour!
+            </p>
+
+            <!-- Features / Info section -->
+            <div class="text-left bg-gray-50 p-5 rounded-2xl border border-gray-100 mb-8 space-y-4 shadow-sm">
+                <h3 class="text-sm font-bold text-gray-500 uppercase tracking-wider mb-3">Hoe werk het?</h3>
+
+                <div class="flex items-start gap-4">
+                    <div class="bg-red-100 text-red-600 rounded-full h-8 w-8 flex items-center justify-center shrink-0 font-bold text-sm">1</div>
+                    <p class="text-sm text-gray-700 leading-tight mt-1.5">Download via de knop hieronder en <b>installeer de app</b> op je toestel.</p>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <div class="bg-red-100 text-red-600 rounded-full h-8 w-8 flex items-center justify-center shrink-0 font-bold text-sm">2</div>
+                    <p class="text-sm text-gray-700 leading-tight mt-1.5">Open de app, kies je <b>taal en stem</b> voor de audiobegeleiding.</p>
+                </div>
+
+                <div class="flex items-start gap-4">
+                    <div class="bg-red-100 text-red-600 rounded-full h-8 w-8 flex items-center justify-center shrink-0 font-bold text-sm">3</div>
+                    <p class="text-sm text-gray-700 leading-tight mt-1.5">Zoek en <b>scan de QR-codes</b> in de gangen om verhalen te ontgrendelen!</p>
+                </div>
+            </div>
+
+            <button id="download-btn" class="w-full bg-red-600 hover:bg-red-700 text-white font-bold py-4 px-6 rounded-xl transition duration-300 shadow-md transform hover:-translate-y-1">
                 Download de App
             </button>
         </div>
 
-        <!-- Downloading Status -->
-        <!-- Removed fake progress bar for real download -->
-
         <!-- Finished Status -->
         <div id="finished-state" class="hidden fade-in">
-            <div class="bg-green-100 text-green-700 p-4 rounded-lg mb-6">
-                <h3 class="font-bold text-lg mb-1">Download is gestart!</h3>
-                <p class="text-sm">Open het zojuist gedownloade <b>app-debug.apk</b> bestand via je notificaties of downloads map om de Rondleiding App te installeren.</p>
+            <div class="bg-green-100 text-green-800 p-5 rounded-2xl mb-6 shadow-sm border border-green-200">
+                <h3 class="font-bold text-lg mb-2">✅ Download is gestart!</h3>
+                <p class="text-sm leading-relaxed">Open het zojuist gedownloade <b>app-debug.apk</b> bestand via je notificaties of 'Downloads' map om de Rondleiding App te installeren op je telefoon.</p>
             </div>
-            <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm mb-6 text-left">
-                <p class="font-semibold mb-1">Let op (Android):</p>
-                <p>Mogelijk vraagt je toestel toestemming om "onbekende apps" te installeren. Accepteer dit om de prototype-app te kunnen openen.</p>
+
+            <div class="bg-blue-50 text-blue-800 p-5 rounded-2xl text-sm mb-6 text-left border border-blue-200">
+                <p class="font-bold mb-2 flex items-center gap-2">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                    Belangrijk (Android)
+                </p>
+                <p class="leading-relaxed">Mogelijk vraagt je browser of telefoon toestemming om "Onbekende apps" te installeren. Sta dit toe om de prototype-versie te kunnen openen.</p>
             </div>
+        </div>
         </div>
 
     </div>
 
     <!-- System Install Prompt Modal -->
-    <div id="install-modal" class="hidden fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50 p-4">
+    <div id="install-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 transition-opacity">
         <!-- OS-like prompt dialog -->
-        <div class="bg-white rounded-xl shadow-2xl max-w-sm w-full fade-in transform scale-100">
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full fade-in transform scale-100 border border-gray-100">
             <div class="p-6 text-center">
                 <!-- App Icon -->
-                <div class="bg-blue-50 text-blue-500 rounded-2xl h-16 w-16 flex items-center justify-center mx-auto mb-4">
+                <div class="bg-red-50 text-red-600 rounded-2xl h-16 w-16 flex items-center justify-center mx-auto mb-4 border border-red-100">
                     <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
-                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 18h.01M8 21h8a2 2 0 002-2V5a2 2 0 00-2-2H8a2 2 0 00-2 2v14a2 2 0 002 2z"></path>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
                     </svg>
                 </div>
-                <h3 class="text-lg font-bold text-gray-900 mb-2">App installeren</h3>
-                <p class="text-sm text-gray-500 mb-6">Wil je "Digital Tour App" downloaden en installeren op je apparaat?</p>
-                <div class="flex flex-row justify-between w-full border-t border-gray-100 pt-4 gap-4">
-                    <button id="modal-decline" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-2 px-4 rounded-lg transition duration-200">
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Bestand downloaden</h3>
+                <p class="text-sm text-gray-500 mb-8 leading-relaxed">Weet je zeker dat je "Rondleiding-App.apk" wil downloaden en installeren op dit apparaat?</p>
+                <div class="flex flex-row justify-between w-full border-t border-gray-100 pt-5 gap-4">
+                    <button id="modal-decline" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-4 rounded-xl transition duration-200">
                         Annuleren
                     </button>
-                    <button id="modal-accept" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-semibold py-2 px-4 rounded-lg transition duration-200">
+                    <button id="modal-accept" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-sm">
                         Accepteer
                     </button>
                 </div>
