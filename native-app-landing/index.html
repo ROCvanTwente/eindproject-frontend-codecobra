@@ -29,46 +29,27 @@
 
         <!-- Initial Status -->
         <div id="initial-state" class="fade-in">
-            <p class="text-gray-600 mb-6">Ervaar onze applicatie in zijn volledige native vorm. Met een simpele klik installeer je de app op jouw apparaat.</p>
+            <p class="text-gray-600 mb-6">Ervaar onze applicatie in zijn volledige native vorm. Met een simpele klik download en installeer je de app op jouw apparaat.</p>
             <button id="download-btn" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition duration-200">
-                Download App
+                Download de App
             </button>
         </div>
 
         <!-- Downloading Status -->
-        <div id="download-state" class="hidden fade-in">
-            <p class="text-gray-600 mb-4">Bezig met downloaden en installeren...</p>
-            <div class="w-full bg-gray-200 rounded-full h-2.5 mb-6">
-                <div id="progress-bar" class="bg-blue-600 h-2.5 rounded-full" style="width: 0%"></div>
-            </div>
-        </div>
+        <!-- Removed fake progress bar for real download -->
 
         <!-- Finished Status -->
         <div id="finished-state" class="hidden fade-in">
             <div class="bg-green-100 text-green-700 p-4 rounded-lg mb-6">
-                <h3 class="font-bold text-lg mb-1">🎉 Succesvol geïnstalleerd!</h3>
-                <p class="text-sm">De applicatie is nu klaar voor gebruik op jouw toestel.</p>
+                <h3 class="font-bold text-lg mb-1">Download is gestart!</h3>
+                <p class="text-sm">Open het zojuist gedownloade <b>app-debug.apk</b> bestand via je notificaties of downloads map om de Rondleiding App te installeren.</p>
             </div>
-            <button id="open-btn" class="w-full bg-gray-800 hover:bg-gray-900 text-white font-semibold py-3 px-6 rounded-lg transition duration-200">
-                Open de Native App
-            </button>
+            <div class="bg-blue-50 text-blue-800 p-4 rounded-lg text-sm mb-6 text-left">
+                <p class="font-semibold mb-1">Let op (Android):</p>
+                <p>Mogelijk vraagt je toestel toestemming om "onbekende apps" te installeren. Accepteer dit om de prototype-app te kunnen openen.</p>
+            </div>
         </div>
 
-        <!-- App "Preview" Screen -->
-        <div id="app-preview" class="hidden fade-in mt-6 border-t pt-6 text-left">
-            <div class="flex items-center justify-between mb-4">
-                <h2 class="text-xl font-bold text-gray-800">Welkom!</h2>
-                <div class="h-8 w-8 bg-blue-600 rounded-full"></div>
-            </div>
-            <div class="space-y-3">
-                <div class="h-24 bg-gray-100 rounded-xl flex items-center justify-center p-4">
-                    <p class="text-gray-500 text-sm italic">React Native View <br/> (Verbonden met ASP.NET Core API)</p>
-                </div>
-                <div class="h-24 bg-gray-100 rounded-xl flex items-center justify-center p-4">
-                    <p class="text-gray-500 text-sm italic">Interactieve Tour Inhoud</p>
-                </div>
-            </div>
-        </div>
     </div>
 
     <!-- System Install Prompt Modal -->
@@ -99,11 +80,7 @@
     <script>
         const downloadBtn = document.getElementById('download-btn');
         const initialState = document.getElementById('initial-state');
-        const downloadState = document.getElementById('download-state');
         const finishedState = document.getElementById('finished-state');
-        const progressBar = document.getElementById('progress-bar');
-        const openBtn = document.getElementById('open-btn');
-        const appPreview = document.getElementById('app-preview');
 
         // Modal elements
         const installModal = document.getElementById('install-modal');
@@ -124,28 +101,17 @@
         modalAccept.addEventListener('click', () => {
             installModal.classList.add('hidden');
             initialState.classList.add('hidden');
-            downloadState.classList.remove('hidden');
 
-            let progress = 0;
-            const interval = setInterval(() => {
-                progress += Math.floor(Math.random() * 20) + 5;
-                if (progress >= 100) {
-                    progress = 100;
-                    clearInterval(interval);
+            // Trigger actual file download
+            const downloadLink = document.createElement('a');
+            downloadLink.href = 'app-debug.apk';
+            downloadLink.download = 'Rondleiding-App.apk';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
 
-                    setTimeout(() => {
-                        downloadState.classList.add('hidden');
-                        finishedState.classList.remove('hidden');
-                    }, 500);
-                }
-                progressBar.style.width = progress + '%';
-            }, 300);
-        });
-
-        openBtn.addEventListener('click', () => {
-            finishedState.classList.add('hidden');
-            appPreview.classList.remove('hidden');
-            document.querySelector('.max-w-md').classList.remove('text-center');
+            // Show instructions on how to install
+            finishedState.classList.remove('hidden');
         });
     </script>
 </body>
