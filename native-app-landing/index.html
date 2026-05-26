@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="nl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>Download Rondleiding App - De Gieterij</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css">
+    <style>
+        .hidden { display: none; }
+        .fade-in { animation: fadeIn 0.5s ease-in; }
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        /* Custom styles for background overlay */
+        .bg-campus {
+            /* Fallback campus building image */
+            background-image: url('https://images.unsplash.com/photo-1541339907198-e08756dedf3f?ixlib=rb-1.2.1&auto=format&fit=crop&w=1920&q=80');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+        }
+        /* Lichte (light) blur layer voor leesbaarheid */
+        .backdrop-light {
+            background-color: rgba(255, 255, 255, 0.85);
+            backdrop-filter: blur(8px);
+            -webkit-backdrop-filter: blur(8px);
+        }
+        /* Hide scrollbar for Chrome, Safari and Opera */
+        .no-scrollbar::-webkit-scrollbar {
+            display: none;
+        }
+        /* Hide scrollbar for IE, Edge and Firefox */
+        .no-scrollbar {
+            -ms-overflow-style: none;  /* IE and Edge */
+            scrollbar-width: none;  /* Firefox */
+        }
+    </style>
+</head>
+<body class="bg-campus relative min-h-screen h-[100dvh] w-screen overflow-hidden font-sans flex items-center justify-center p-4">
+    <!-- Achtergrond overlay -->
+    <div class="absolute inset-0 backdrop-light z-0 pointer-events-none"></div>
+
+    <!-- Centraal Mobiel Kaartje, strak afgerond, compact voor telefoons. (max-h-90dvh voorkomt overflow op kleine schermen) -->
+    <div class="relative z-10 bg-white p-5 sm:p-7 rounded-[2rem] shadow-2xl w-full max-w-sm flex flex-col h-auto max-h-[92dvh] border border-gray-100">
+
+        <!-- Binnenkant van de kaart is verborgen scrollbaar -->
+        <div class="overflow-y-auto no-scrollbar flex-1 pb-1">
+            <!-- Header -->
+            <h1 class="text-2xl sm:text-3xl font-extrabold text-gray-800 mb-1 leading-tight">Rondleiding App</h1>
+            <p class="text-red-600 font-bold mb-5 tracking-wide uppercase text-xs sm:text-sm">ROC van Twente &mdash; De Gieterij</p>
+
+            <!-- Placeholder Image/Icon (Location pinpoint) -->
+            <div class="bg-red-50 text-red-600 rounded-full h-16 w-16 flex items-center justify-center mx-auto mb-5 border border-red-100 shadow-sm shrink-0">
+                <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z"></path>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z"></path>
+                </svg>
+            </div>
+
+            <!-- Initial Status -->
+            <div id="initial-state" class="fade-in">
+                <p class="text-gray-600 mb-5 text-[15px] sm:text-base leading-relaxed px-1">
+                    Ontdek ons gebouw in Hengelo op eigen tempo met de interactieve app!
+                </p>
+
+                <!-- Features / Info section -->
+                <div class="text-left bg-gray-50 p-4 rounded-3xl border border-gray-100 space-y-3.5 shadow-inner mb-4">
+                    <div class="flex items-start gap-3">
+                        <div class="bg-red-100 text-red-600 rounded-full h-7 w-7 flex items-center justify-center shrink-0 font-bold text-[13px]">1</div>
+                        <p class="text-[14px] text-gray-700 leading-snug mt-1">Download en <b>installeer</b> de app.</p>
+                    </div>
+
+                    <div class="flex items-start gap-3">
+                        <div class="bg-red-100 text-red-600 rounded-full h-7 w-7 flex items-center justify-center shrink-0 font-bold text-[13px]">2</div>
+                        <p class="text-[14px] text-gray-700 leading-snug mt-1">Kies je <b>taal en stem</b>.</p>
+                    </div>
+
+                    <div class="flex items-start gap-3">
+                        <div class="bg-red-100 text-red-600 rounded-full h-7 w-7 flex items-center justify-center shrink-0 font-bold text-[13px]">3</div>
+                        <p class="text-[14px] text-gray-700 leading-snug mt-1">Scan <b>QR-codes</b> in de gangen.</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Finished Status -->
+            <div id="finished-state" class="hidden fade-in">
+                <div class="bg-green-50 text-green-800 p-4 rounded-3xl mb-4 border border-green-200 text-left shadow-sm mt-3">
+                    <h3 class="font-bold text-[15px] mb-1.5 flex items-center gap-1.5">✅ Download is gestart!</h3>
+                    <p class="text-[14px] leading-relaxed">Open het <b>app-debug.apk</b> bestand via je notificaties of 'Downloads' map.</p>
+                </div>
+
+                <div class="bg-blue-50 text-blue-800 p-4 rounded-3xl text-[14px] leading-relaxed text-left border border-blue-200 shadow-sm mt-4">
+                    <p class="font-bold mb-1.5 flex items-center gap-1.5">
+                        <svg class="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        Belangrijk (Android)
+                    </p>
+                    <p>Mogelijk vraagt je toestel toestemming voor "Onbekende apps". Sta dit toe in je instellingen.</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Download Knop Onderaan (Blijft altijd zichtbaar) -->
+        <div id="button-container" class="mt-4 pt-4 border-t border-gray-100 shrink-0">
+            <button id="download-btn" class="w-full bg-red-600 hover:bg-red-700 active:bg-red-800 text-white font-bold py-4 px-6 rounded-2xl transition duration-200 shadow-lg active:shadow-md transform active:scale-[0.98] text-[16px]">
+                Download de App
+            </button>
+        </div>
+
+    </div>
+
+    <!-- System Install Prompt Modal -->
+    <div id="install-modal" class="hidden fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4 transition-opacity">
+        <!-- OS-like prompt dialog -->
+        <div class="bg-white rounded-2xl shadow-2xl max-w-sm w-full fade-in transform scale-100 border border-gray-100">
+            <div class="p-6 text-center">
+                <!-- App Icon -->
+                <div class="bg-red-50 text-red-600 rounded-2xl h-16 w-16 flex items-center justify-center mx-auto mb-4 border border-red-100">
+                    <svg class="h-8 w-8" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </div>
+                <h3 class="text-xl font-bold text-gray-900 mb-2">Bestand downloaden</h3>
+                <p class="text-sm text-gray-500 mb-8 leading-relaxed">Weet je zeker dat je "Rondleiding-App.apk" wil downloaden en installeren op dit apparaat?</p>
+                <div class="flex flex-row justify-between w-full border-t border-gray-100 pt-5 gap-4">
+                    <button id="modal-decline" class="flex-1 bg-gray-100 hover:bg-gray-200 text-gray-800 font-semibold py-3 px-4 rounded-xl transition duration-200">
+                        Annuleren
+                    </button>
+                    <button id="modal-accept" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-semibold py-3 px-4 rounded-xl transition duration-200 shadow-sm">
+                        Accepteer
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const downloadBtn = document.getElementById('download-btn');
+        const initialState = document.getElementById('initial-state');
+        const finishedState = document.getElementById('finished-state');
+
+        // Modal elements
+        const installModal = document.getElementById('install-modal');
+        const modalDecline = document.getElementById('modal-decline');
+        const modalAccept = document.getElementById('modal-accept');
+        const buttonContainer = document.getElementById('button-container');
+
+        // Show OS prompt when clicking download
+        downloadBtn.addEventListener('click', () => {
+            installModal.classList.remove('hidden');
+        });
+
+        // Close OS prompt if declined
+        modalDecline.addEventListener('click', () => {
+            installModal.classList.add('hidden');
+        });
+
+        // Start download logic if accepted
+        modalAccept.addEventListener('click', () => {
+            installModal.classList.add('hidden');
+            initialState.classList.add('hidden');
+            buttonContainer.classList.add('hidden');
+
+            // Trigger actual file download
+            const downloadLink = document.createElement('a');
+            downloadLink.href = 'app-debug.apk';
+            downloadLink.download = 'Rondleiding-App.apk';
+            document.body.appendChild(downloadLink);
+            downloadLink.click();
+            document.body.removeChild(downloadLink);
+
+            // Show instructions on how to install
+            finishedState.classList.remove('hidden');
+        });
+    </script>
+</body>
+</html>
