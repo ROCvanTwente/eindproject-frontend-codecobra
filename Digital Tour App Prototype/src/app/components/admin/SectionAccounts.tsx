@@ -30,7 +30,9 @@ export function SectionAccounts({
   });
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminAccount | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
 
@@ -40,7 +42,7 @@ export function SectionAccounts({
 
   const loadAccounts = async () => {
     try {
-      setIsLoading(true);
+      setIsLoadingAccounts(true);
       const accounts = await getAllAccounts();
       onChange({ accounts }, { action: "load-accounts", target: "all" });
     } catch (err) {
@@ -50,14 +52,14 @@ export function SectionAccounts({
           : "Failed to load accounts"
       );
     } finally {
-      setIsLoading(false);
+      setIsLoadingAccounts(false);
     }
   };
 
   const create = async () => {
     setUsernameError(null);
 
-    if (!form.username.trim() || !form.password.trim()) {
+    if (!form.username.trim() || !form.password.trim() || !form.email.trim()) {
       setErrorModal(
         language === "nl"
           ? "Vul alle velden in"
@@ -89,17 +91,18 @@ export function SectionAccounts({
     }
 
     try {
-      setIsLoading(true);
-      const newAcc = await createAccount(
+      setIsCreating(true);
+      await createAccount(
         form.username,
         form.email,
         form.password,
         form.role
       );
       onChange(
-        { accounts: [...settings.accounts, newAcc] },
+        {},
         { action: "create-account", target: form.username },
       );
+      await loadAccounts();
       setForm({
         username: "",
         password: "",
@@ -114,7 +117,7 @@ export function SectionAccounts({
           : "Failed to create account"
       );
     } finally {
-      setIsLoading(false);
+      setIsCreating(false);
     }
   };
 
@@ -266,14 +269,14 @@ export function SectionAccounts({
               </select>
               <button
                 onClick={create}
-                disabled={isLoading}
+                disabled={isCreating}
                 className="bg-[#0066B3] text-white px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {language === "nl" ? "Aanmaken" : "Create"}
               </button>
               <button
                 onClick={() => setShowForm(false)}
-                disabled={isLoading}
+                disabled={isCreating}
                 className="bg-gray-400 text-white px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {language === "nl" ? "Annuleren" : "Cancel"}
@@ -284,7 +287,7 @@ export function SectionAccounts({
       )}
 
       <div className="space-y-2">
-        {isLoading ? (
+        {isLoadingAccounts ? (
           <div className="flex items-center justify-center gap-3 border-2 border-gray-200 rounded-xl p-6">
             <Loader2 className="w-5 h-5 text-[#0066B3] animate-spin" />
             <p className="text-gray-600">
@@ -298,7 +301,7 @@ export function SectionAccounts({
             className="flex items-center gap-3 border-2 border-gray-200 rounded-xl p-3"
           >
             <div className="w-10 h-10 rounded-full bg-[#0066B3] text-white flex items-center justify-center">
-              {acc.username[0]?.toUpperCase()}
+              {acc.username?.[0]?.toUpperCase() ?? "?"}
             </div>
             <div className="flex-1">
               <p className="text-base">{acc.username}</p>
@@ -309,7 +312,7 @@ export function SectionAccounts({
             </div>
             <button
               onClick={() => remove(acc)}
-              disabled={isLoading}
+              disabled={isDeleting}
               className="text-red-600 hover:bg-red-50 p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
               aria-label="Delete"
             >
@@ -341,8 +344,9 @@ export function SectionAccounts({
           }
           variant="danger"
           onConfirm={async () => {
+            if (isDeleting) return;
             try {
-              setIsLoading(true);
+              setIsDeleting(true);
               await deleteAccount(confirmDelete.id);
               onChange(
                 {
@@ -360,7 +364,7 @@ export function SectionAccounts({
                   : "Failed to delete account"
               );
             } finally {
-              setIsLoading(false);
+              setIsDeleting(false);
             }
           }}
           onCancel={() => setConfirmDelete(null)}
