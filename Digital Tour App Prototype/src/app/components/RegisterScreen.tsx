@@ -2,15 +2,13 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AdminSettings } from "../data/settings";
 import { UserSession } from "../types";
+import { registerUser } from "../../services/authApi";
 
 interface RegisterScreenProps {
   settings: AdminSettings;
   onRegister: (session: UserSession) => void;
   onBack: () => void;
 }
-
-const API_BASE =
-  (import.meta as any).env?.VITE_API_URL || "https://localhost:7199";
 
 export function RegisterScreen({
   settings,
@@ -56,12 +54,7 @@ export function RegisterScreen({
     setLoading(true);
 
     try {
-      const response = await fetch(`${API_BASE.replace(/\/$/, "")}/register`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await registerUser(email, password);
 
       const data = await response.json().catch(() => ({}));
 
