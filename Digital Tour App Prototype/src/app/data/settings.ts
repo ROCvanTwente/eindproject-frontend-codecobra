@@ -10,7 +10,7 @@ export interface AdminAccount {
   id: number;
   username: string;
   password: string; // prototype only — not hashed
-  role: "admin" | "editor";
+  role: "Admin" | "Editor";
   email?: string;
 }
 
@@ -80,7 +80,7 @@ const DEFAULTS: AdminSettings = {
       id: 1,
       username: "admin",
       password: "gieterij",
-      role: "admin",
+      role: "Admin",
       email: "admin@gieterij.nl",
     },
   ],
