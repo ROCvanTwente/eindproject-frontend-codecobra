@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminSettings, addHistory } from "../data/settings";
 import { Language, UserSession } from "../types";
+import { loginUser } from "../../services/authApi";
 
 interface LoginScreenProps {
   settings: AdminSettings;
@@ -25,13 +26,7 @@ export function LoginScreen({
     setError('');
 
     try {
-      const response = await fetch('https://localhost:7199/login', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ email, password }),
-      });
+      const response = await loginUser(email, password);
 
       if (response.ok) {
         // Try to read token and optional user info from response.
