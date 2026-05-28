@@ -1,7 +1,13 @@
-const API_BASE_URL = "http://digitalworkplacetestapi.runasp.net/api";
+import { getAuthHeaders } from "./authApi";
+
+const API_BASE_URL = "https://localhost:7199/api";
 
 export async function getAllAccounts() {
-  const response = await fetch(`${API_BASE_URL}/user/all`);
+  const response = await fetch(`${API_BASE_URL}/user/all`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
     if (!response.ok) {
         throw new Error("Failed to fetch accounts");
     }
@@ -13,6 +19,7 @@ export async function createAccount(username, email, password, role) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
+      ...getAuthHeaders(),
     },
     body: JSON.stringify({ username, email, password, role }),
   });
@@ -27,6 +34,9 @@ export async function createAccount(username, email, password, role) {
 export async function deleteAccount(id) {
   const response = await fetch(`${API_BASE_URL}/user/delete/${id}`, {
     method: "DELETE",
+    headers: {
+      ...getAuthHeaders(),
+    },
   });
   if (!response.ok) {
     throw new Error("Failed to delete account");

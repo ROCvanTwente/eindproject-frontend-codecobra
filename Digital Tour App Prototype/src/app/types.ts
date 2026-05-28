@@ -52,5 +52,5 @@ export interface TourData {
 
 export interface UserSession {
   username: string;
-  role: "admin" | "user";
+  role: "Admin" | "Editor";
 }

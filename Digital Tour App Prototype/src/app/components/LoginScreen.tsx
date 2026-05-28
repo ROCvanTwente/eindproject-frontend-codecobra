@@ -76,18 +76,18 @@ export function LoginScreen({
 
           {/* Form */}
           <form onSubmit={handleSubmit} className="space-y-4">
-            {/* Email Input */}
+            {/* username */}
             <div>
               <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-2">
-                Email Address
+                Username
               </label>
               <input
-                type="email"
+                type="text"
                 id="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                placeholder="you@example.com"
+                placeholder="your_username"
                 className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
               />
             </div>

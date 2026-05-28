@@ -147,6 +147,12 @@ export function AdminPanel({
     onBack();
   };
 
+  const currentUserRole = settings.accounts.find(
+    (acc) => acc.username === settings.currentSession?.username,
+  )?.role;
+
+  const isAdminUser = currentUserRole === "Admin";
+
   const renderSection = () => {
     switch (section) {
       case "home":
@@ -156,6 +162,7 @@ export function AdminPanel({
             settings={settings}
             onNavigate={setSection}
             sectionMeta={SECTION_META}
+            isAdminUser={isAdminUser}
           />
         );
       case "stops":
@@ -196,6 +203,17 @@ export function AdminPanel({
           />
         );
       case "accounts":
+        if (!isAdminUser) {
+          return (
+            <SectionHome
+              language={language}
+              settings={settings}
+              onNavigate={setSection}
+              sectionMeta={SECTION_META}
+              isAdminUser={isAdminUser}
+            />
+          );
+        }
         return (
           <SectionAccounts
             language={language}
@@ -260,6 +278,7 @@ export function AdminPanel({
             settings={settings}
             onNavigate={setSection}
             sectionMeta={SECTION_META}
+            isAdminUser={isAdminUser}
           />
         );
     }
@@ -337,27 +356,25 @@ export function AdminPanel({
           </button>
         </div>
         <div className="overflow-y-auto h-[calc(100vh-60px)] p-2">
-          {SECTION_META.map((s) => {
+          {SECTION_META.filter(
+            (s) => !s.disabled && !(s.key === "accounts" && !isAdminUser)
+          ).map((s) => {
             const Icon = s.icon;
             const active = section === s.key;
-            const disabled = !!s.disabled;
             return (
               <button
                 key={s.key}
                 onClick={() => {
-                  if (disabled) return;
                   setSection(s.key);
                   setMenuOpen(false);
                 }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors mb-1 ${
                   active
                     ? "bg-[#0066B3] text-white"
-                    : disabled
-                    ? "text-gray-400 bg-gray-50 cursor-not-allowed"
                     : "text-gray-700 hover:bg-gray-100"
                 }`}
               >
-                <Icon className={`w-5 h-5 flex-shrink-0 ${disabled ? 'text-gray-400' : ''}`} />
+                <Icon className="w-5 h-5 flex-shrink-0" />
                 <span className="text-sm">{s[language]}</span>
               </button>
             );
@@ -369,26 +386,24 @@ export function AdminPanel({
         {/* Desktop sidebar */}
         <aside className="hidden md:block md:w-64 md:flex-shrink-0">
           <nav className="bg-white rounded-xl border-2 border-gray-200 p-2 flex flex-col gap-1 md:sticky md:top-20">
-            {SECTION_META.map((s) => {
+            {SECTION_META.filter(
+              (s) => !s.disabled && !(s.key === "accounts" && !isAdminUser)
+            ).map((s) => {
               const Icon = s.icon;
               const active = section === s.key;
-              const disabled = !!s.disabled;
               return (
                 <button
                   key={s.key}
                   onClick={() => {
-                    if (disabled) return;
                     setSection(s.key);
                   }}
                   className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors ${
                     active
                       ? "bg-[#0066B3] text-white"
-                      : disabled
-                      ? "text-gray-400 bg-gray-50 cursor-not-allowed"
                       : "text-gray-700 hover:bg-gray-100"
                   }`}
                 >
-                  <Icon className={`w-5 h-5 flex-shrink-0 ${disabled ? 'text-gray-400' : ''}`} />
+                  <Icon className="w-5 h-5 flex-shrink-0" />
                   <span className="text-sm truncate">
                     {s[language]}
                   </span>

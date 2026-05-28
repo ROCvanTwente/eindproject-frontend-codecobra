@@ -26,7 +26,7 @@ export function SectionAccounts({
     username: "",
     password: "",
     email: "",
-    role: "editor" as AdminAccount["role"],
+    role: "Editor" as AdminAccount["role"],
   });
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminAccount | null>(null);
@@ -107,7 +107,7 @@ export function SectionAccounts({
         username: "",
         password: "",
         email: "",
-        role: "editor",
+        role: "Editor",
       });
       setShowForm(false);
     } catch (err) {
@@ -172,7 +172,7 @@ export function SectionAccounts({
       {!showForm && (
         <button
           onClick={() => setShowForm(true)}
-          className="flex items-center gap-2 bg-[#0066B3] text-white px-4 py-2 rounded-lg hover:opacity-90 mb-6"
+          className="flex items-center gap-2 bg-[#0066B3] text-white px-4 py-2 rounded-lg hover:opacity-90 hover:cursor-pointer mb-6"
         >
           <UserPlus className="w-5 h-5" />
           {language === "nl" ? "Gebruiker toevoegen" : "Add user"}
@@ -270,14 +270,14 @@ export function SectionAccounts({
               <button
                 onClick={create}
                 disabled={isCreating}
-                className="bg-[#0066B3] text-white px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-[#0066B3] text-white px-4 py-2 rounded-lg hover:opacity-90 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {language === "nl" ? "Aanmaken" : "Create"}
               </button>
               <button
                 onClick={() => setShowForm(false)}
                 disabled={isCreating}
-                className="bg-gray-400 text-white px-4 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="bg-gray-400 text-white px-4 py-2 rounded-lg hover:opacity-90 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {language === "nl" ? "Annuleren" : "Cancel"}
               </button>
@@ -312,8 +312,8 @@ export function SectionAccounts({
             </div>
             <button
               onClick={() => remove(acc)}
-              disabled={isDeleting}
-              className="text-red-600 hover:bg-red-50 p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              disabled={isDeleting || acc.username === settings.currentSession?.username}
+              className="text-red-600 hover:bg-red-50 hover:cursor-pointer p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
               aria-label="Delete"
             >
               <Trash2 className="w-5 h-5" />

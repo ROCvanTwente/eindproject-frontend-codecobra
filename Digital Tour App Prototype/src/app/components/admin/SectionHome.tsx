@@ -13,6 +13,7 @@ interface Props {
     en: string;
     disabled?: boolean;
   }>;
+  isAdminUser: boolean;
 }
 
 export function SectionHome({
@@ -20,6 +21,7 @@ export function SectionHome({
   settings,
   onNavigate,
   sectionMeta,
+  isAdminUser,
 }: Props) {
   const lowBatteries = settings.beaconBatteries.filter(
     (b) => b.batteryPct <= settings.batteryThresholdPct,
@@ -41,16 +43,13 @@ export function SectionHome({
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
         {sectionMeta
           .filter((item) => item.key !== "home")
+          .filter((item) => !(item.key === "accounts" && !isAdminUser))
           .map((item) => {
-            const disabled = !!item.disabled;
             return (
               <div
                 key={item.key}
-                className={`bg-white p-4 rounded-lg shadow-md flex flex-col items-center justify-center transition-shadow ${
-                  disabled ? "opacity-50 cursor-not-allowed bg-gray-50" : "cursor-pointer hover:shadow-lg"
-                }`}
+                className="bg-white p-4 rounded-lg shadow-md flex flex-col items-center justify-center transition-shadow cursor-pointer hover:shadow-lg"
                 onClick={() => {
-                  if (disabled) return;
                   onNavigate(item.key);
                 }}
               >
