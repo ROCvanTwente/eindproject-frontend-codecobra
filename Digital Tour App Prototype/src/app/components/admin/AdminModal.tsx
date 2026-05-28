@@ -49,7 +49,7 @@ export function ConfirmModal({
       <div className="flex gap-2 justify-end">
         <button
           onClick={onCancel}
-          className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 hover:bg-gray-50 hover:cursor-pointer transition-colors"
         >
           {defaultCancel}
         </button>
@@ -57,8 +57,8 @@ export function ConfirmModal({
           onClick={onConfirm}
           className={`px-4 py-2 rounded-lg text-white transition-colors ${
             variant === "danger"
-              ? "bg-red-600 hover:bg-red-700"
-              : "bg-yellow-600 hover:bg-yellow-700"
+              ? "bg-red-600 hover:bg-red-700 hover:cursor-pointer"
+              : "bg-yellow-600 hover:bg-yellow-700 hover:cursor-pointer"
           }`}
         >
           {defaultConfirm}
@@ -114,7 +114,7 @@ export function AlertModal({
       <div className="flex justify-end">
         <button
           onClick={onClose}
-          className="px-4 py-2 rounded-lg bg-[#0066B3] text-white hover:opacity-90 transition-opacity"
+          className="px-4 py-2 rounded-lg bg-[#0066B3] text-white hover:opacity-90 hover:cursor-pointer transition-opacity"
         >
           {okLabel}
         </button>
@@ -143,7 +143,7 @@ function ModalOverlay({
       <div className="relative bg-white rounded-2xl shadow-2xl w-full max-w-sm p-5 border-2 border-gray-100">
         <button
           onClick={onClose}
-          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 transition-colors"
+          className="absolute top-3 right-3 text-gray-400 hover:text-gray-600 hover:cursor-pointer transition-colors"
           aria-label="Sluiten"
         >
           <X className="w-5 h-5" />

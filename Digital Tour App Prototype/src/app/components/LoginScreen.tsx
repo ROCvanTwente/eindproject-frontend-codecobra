@@ -15,7 +15,7 @@ export function LoginScreen({
   onLogin,
   onBack,
 }: LoginScreenProps) {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -26,7 +26,7 @@ export function LoginScreen({
     setError('');
 
     try {
-      const response = await loginUser(email, password);
+      const response = await loginUser(username, password);
 
       if (response.ok) {
         // Try to read token and optional user info from response.
@@ -40,7 +40,7 @@ export function LoginScreen({
 
         // Build a UserSession to pass back to App. Prefer server-provided info if available.
         const session = {
-          username: data?.username ?? email,
+          username: data?.username ?? username,
           role: data?.role ?? 'admin',
         };
 
@@ -83,18 +83,18 @@ export function LoginScreen({
 
                     {/* Form */}
                     <form onSubmit={handleSubmit} className="space-y-4">
-                        {/* Email Input */}
+                        {/* Username Input */}
                         <div>
-                            <label htmlFor="email" className="block text-sm font-semibold text-gray-900 mb-2">
-                                Email Address
+                            <label htmlFor="username" className="block text-sm font-semibold text-gray-900 mb-2">
+                                Username
                             </label>
                             <input
-                                type="email"
-                                id="email"
-                                value={email}
-                                onChange={(e) => setEmail(e.target.value)}
+                                type="text"
+                                id="username"
+                                value={username}
+                                onChange={(e) => setUsername(e.target.value)}
                                 required
-                                placeholder="you@example.com"
+                                placeholder="your_username"
                                 className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
                             />
                         </div>
