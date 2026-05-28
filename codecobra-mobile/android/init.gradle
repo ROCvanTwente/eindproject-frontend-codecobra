@@ -1,0 +1,10 @@
+allprojects {
+    buildscript {
+        repositories {
+            metaClass.jcenter = { -> mavenCentral() }
+        }
+    }
+    repositories {
+        metaClass.jcenter = { -> mavenCentral() }
+    }
+}
