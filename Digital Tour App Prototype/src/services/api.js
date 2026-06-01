@@ -1,6 +1,6 @@
 import { getAuthHeaders } from "./authApi";
 
-const API_BASE_URL = "https://digitalworkplacetestapi.runasp.net/api";
+const API_BASE_URL = "https://localhost:7199/api";
 
 export async function getAllAccounts() {
   const response = await fetch(`${API_BASE_URL}/user/all`, {

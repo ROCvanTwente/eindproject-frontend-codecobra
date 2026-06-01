@@ -147,11 +147,12 @@ export function AdminPanel({
     onBack();
   };
 
-  const currentUserRole = settings.accounts.find(
-    (acc) => acc.username === settings.currentSession?.username,
-  )?.role;
+  const currentUserRole = settings.currentSession?.role;
 
-  const isAdminUser = currentUserRole === "Admin";
+  console.log("Current user data:", settings.currentSession);
+  console.log("Current user role:", currentUserRole);
+
+  const isAdminUser = currentUserRole === "admin";
 
   const renderSection = () => {
     switch (section) {
