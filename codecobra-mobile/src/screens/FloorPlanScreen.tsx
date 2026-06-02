@@ -10,10 +10,12 @@ import {
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import Svg, { Circle, Text as SvgText, Rect, Line } from "react-native-svg";
+// Fixed Import Line:
+import Svg, { Circle, Text as SvgText, Rect, Line, Image as SvgImage } from "react-native-svg";
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language } from "../types";
+import FloorPlanImage from "../imports/PlattegrondGieterijBeganegrondV2.0.png";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -52,8 +54,13 @@ export function FloorPlanScreen({ navigation, route }: Props) {
         {/* SVG map */}
         <View style={styles.mapContainer}>
           <Svg width={MAP_W} height={MAP_H}>
-            {/* Background */}
-            <Rect x={0} y={0} width={MAP_W} height={MAP_H} fill="#e5e7eb" rx={8} />
+            {/* Background Map Image */}
+            <SvgImage
+              href={FloorPlanImage}
+              width={MAP_W}
+              height={MAP_H}
+              preserveAspectRatio="xMidYMid slice"
+            />
 
             {/* Connecting lines between ordered stops */}
             {positionedStops.map((stop, i) => {
