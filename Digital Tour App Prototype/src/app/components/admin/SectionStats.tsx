@@ -71,7 +71,9 @@ export function SectionStats({
           >
             <div className="flex items-center justify-between mb-1">
               <span className="text-base">
-                {r.stop.title[language]}
+                {language === "nl"
+                  ? r.stop.titleNl
+                  : r.stop.titleEn}
               </span>
               <span className="text-sm text-gray-500">
                 {r.visits}×
