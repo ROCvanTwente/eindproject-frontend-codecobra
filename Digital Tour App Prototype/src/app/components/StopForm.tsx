@@ -29,58 +29,30 @@ export function StopForm({
     const rect = svg.getBoundingClientRect();
     const x = Math.round(((e.clientX - rect.left) / rect.width) * MAP_W);
     const y = Math.round(((e.clientY - rect.top) / rect.height) * MAP_H);
-    setFormData({ ...formData, mapX: x, mapY: y });
+    setFormData({ ...formData, positionX: x, positionY: y });
   };
 
   const clearMapPosition = () => {
-    setFormData({ ...formData, mapX: undefined, mapY: undefined });
+    setFormData({ ...formData, positionX: undefined, positionY: undefined });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Auto-fallback: if English is empty, copy the Dutch value so the user
     // isn't forced to fill both sides.
-    const fill = (pair: { nl: string; en: string }) => ({
-      nl: pair.nl,
-      en: pair.en.trim() ? pair.en : pair.nl,
-    });
+    const fillText = (nl: string, en: string) =>
+      en.trim() ? en : nl;
+
     onSave({
       ...formData,
-      location: fill(formData.location),
-      title: fill(formData.title),
-      description: fill(formData.description),
+      locationEn: fillText(formData.locationNl, formData.locationEn),
+      titleEn: fillText(formData.titleNl, formData.titleEn),
+      descriptionEn: fillText(formData.descriptionNl, formData.descriptionEn),
     });
   };
 
   const updateField = (field: keyof Stop, value: any) => {
     setFormData({ ...formData, [field]: value });
-  };
-
-  const updateTranslation = (
-    field: "location" | "title" | "description",
-    lang: Language,
-    value: string,
-  ) => {
-    setFormData({
-      ...formData,
-      [field]: { ...formData[field], [lang]: value },
-    });
-  };
-
-  const updateMedia = (
-    field: keyof NonNullable<Stop["media"]>,
-    value: any,
-  ) => {
-    setFormData({
-      ...formData,
-      media: formData.media
-        ? { ...formData.media, [field]: value }
-        : { type: "image", url: "", [field]: value },
-    });
-  };
-
-  const removeMedia = () => {
-    setFormData({ ...formData, media: undefined });
   };
 
   return (
@@ -113,9 +85,9 @@ export function StopForm({
             </label>
             <input
               type="text"
-              value={formData.qrCode}
+              value={formData.qrCode?.code || ""}
               onChange={(e) =>
-                updateField("qrCode", e.target.value)
+                updateField("qrCode", { ...formData.qrCode, code: e.target.value })
               }
               className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
               placeholder="GIETERIJ-001"
@@ -133,13 +105,9 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.location.nl}
+                value={formData.locationNl}
                 onChange={(e) =>
-                  updateTranslation(
-                    "location",
-                    "nl",
-                    e.target.value,
-                  )
+                  updateField("locationNl", e.target.value)
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
                 placeholder="Hoofdingang - Hal"
@@ -154,13 +122,9 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.location.en}
+                value={formData.locationEn}
                 onChange={(e) =>
-                  updateTranslation(
-                    "location",
-                    "en",
-                    e.target.value,
-                  )
+                  updateField("locationEn", e.target.value)
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
                 placeholder={
@@ -182,13 +146,9 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.title.nl}
+                value={formData.titleNl}
                 onChange={(e) =>
-                  updateTranslation(
-                    "title",
-                    "nl",
-                    e.target.value,
-                  )
+                  updateField("titleNl", e.target.value)
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
                 placeholder="Welkom bij de Gieterij"
@@ -203,13 +163,9 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.title.en}
+                value={formData.titleEn}
                 onChange={(e) =>
-                  updateTranslation(
-                    "title",
-                    "en",
-                    e.target.value,
-                  )
+                  updateField("titleEn", e.target.value)
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
                 placeholder={
@@ -230,13 +186,9 @@ export function StopForm({
                   : "Description (Dutch)"}
               </label>
               <textarea
-                value={formData.description.nl}
+                value={formData.descriptionNl}
                 onChange={(e) =>
-                  updateTranslation(
-                    "description",
-                    "nl",
-                    e.target.value,
-                  )
+                  updateField("descriptionNl", e.target.value)
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none min-h-[150px]"
                 placeholder="Beschrijving..."
@@ -250,13 +202,9 @@ export function StopForm({
                   : "Description (English) — optional"}
               </label>
               <textarea
-                value={formData.description.en}
+                value={formData.descriptionEn}
                 onChange={(e) =>
-                  updateTranslation(
-                    "description",
-                    "en",
-                    e.target.value,
-                  )
+                  updateField("descriptionEn", e.target.value)
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none min-h-[150px]"
                 placeholder={
@@ -276,7 +224,7 @@ export function StopForm({
                   ? "Positie op plattegrond"
                   : "Position on floor plan"}
               </label>
-              {typeof formData.mapX === "number" && (
+              {typeof formData.positionX === "number" && (
                 <button
                   type="button"
                   onClick={clearMapPosition}
@@ -310,19 +258,19 @@ export function StopForm({
                   height={MAP_H}
                   preserveAspectRatio="xMidYMid meet"
                 />
-                {typeof formData.mapX === "number" &&
-                  typeof formData.mapY === "number" && (
+                {typeof formData.positionX === "number" &&
+                  typeof formData.positionY === "number" && (
                     <g style={{ pointerEvents: "none" }}>
                       <circle
-                        cx={formData.mapX}
-                        cy={formData.mapY}
+                        cx={formData.positionX}
+                        cy={formData.positionY}
                         r="46"
                         fill="#E30613"
                         fillOpacity="0.3"
                       />
                       <circle
-                        cx={formData.mapX}
-                        cy={formData.mapY}
+                        cx={formData.positionX}
+                        cy={formData.positionY}
                         r="24"
                         fill="#E30613"
                         stroke="white"
@@ -332,9 +280,9 @@ export function StopForm({
                   )}
               </svg>
             </div>
-            {typeof formData.mapX === "number" ? (
+            {typeof formData.positionX === "number" ? (
               <p className="text-sm text-gray-500 mt-2">
-                x: {formData.mapX}, y: {formData.mapY}
+                x: {formData.positionX}, y: {formData.positionY}
               </p>
             ) : (
               <p className="text-sm text-gray-500 mt-2">
@@ -373,7 +321,7 @@ export function StopForm({
               <h3 className="text-xl">
                 {language === "nl" ? "Media" : "Media"}
               </h3>
-              {formData.media && (
+              {formData.mediaUrl && (
                 <button
                   type="button"
                   onClick={removeMedia}
@@ -386,7 +334,7 @@ export function StopForm({
               )}
             </div>
 
-            {formData.media ? (
+            {formData.mediaUrl ? (
               <div className="space-y-4">
                 <div>
                   <label className="block text-lg mb-2">
@@ -421,7 +369,7 @@ export function StopForm({
                   </label>
                   <input
                     type="url"
-                    value={formData.media.url}
+                    value={formData.mediaUrl}
                     onChange={(e) =>
                       updateMedia("url", e.target.value)
                     }

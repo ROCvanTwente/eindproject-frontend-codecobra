@@ -43,3 +43,69 @@ export async function deleteAccount(id) {
   }
   return await response.json();
 }
+
+export async function getAllTourStops() {
+  const response = await fetch(`${API_BASE_URL}/stops/all`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch tour stops");
+  }
+  return await response.json();
+}
+
+export async function getTourStopById(id) {
+  const response = await fetch(`${API_BASE_URL}/stops/${id}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Failed to fetch tour stop");
+  }
+  return await response.json();
+}
+
+export async function AddTourStop(formData) {
+  const response = await fetch(`${API_BASE_URL}/stops/add`, {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+    },
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error("Failed to add tour stop");
+  }
+  return await response.json();
+}
+
+export async function deleteTourStop(id) {
+  const response = await fetch(`${API_BASE_URL}/stops/${id}`, {
+    method: "DELETE",
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!response.ok) {
+    throw new Error("Failed to delete tour stop");
+  }
+  return await response.json();
+}
+
+export async function updateTourStop(id, formData) {
+  const response = await fetch(`${API_BASE_URL}/stops/${id}`, {
+    method: "PUT",
+    headers: {
+      ...getAuthHeaders(),    
+    },
+    body: formData,
+  });
+  if (!response.ok) {
+    throw new Error("Failed to update tour stop");
+  }
+  return await response.json();
+}
+

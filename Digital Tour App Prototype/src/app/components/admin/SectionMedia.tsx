@@ -141,17 +141,17 @@ export function SectionMedia({
               <div className="flex items-start gap-3 mb-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-lg truncate">
-                    {stop.title[language]}
+                    {language === "nl" ? stop.titleNl : stop.titleEn}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
-                    {stop.location[language]}
+                    {language === "nl" ? stop.locationNl : stop.locationEn}
                   </p>
                 </div>
                 <div className="flex flex-col items-center flex-shrink-0">
-                  {qrMap[stop.qrCode] ? (
+                  {qrMap[stop.qrCodeId] ? (
                     <img
-                      src={qrMap[stop.qrCode]}
-                      alt={stop.qrCode}
+                      src={qrMap[stop.qrCodeId]}
+                      alt={stop.qrCodeId}
                       className="w-16 h-16 border border-gray-200 rounded"
                     />
                   ) : (
@@ -160,7 +160,7 @@ export function SectionMedia({
                     </div>
                   )}
                   <span className="text-[10px] text-gray-500 mt-1 font-mono">
-                    {stop.qrCode || "—"}
+                    {stop.qrCodeId || "—"}
                   </span>
                 </div>
               </div>

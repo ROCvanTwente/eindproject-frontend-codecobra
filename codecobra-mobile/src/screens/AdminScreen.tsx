@@ -163,8 +163,8 @@ function StopsTab({ stops, onDelete }: { stops: Stop[]; onDelete: (id: number) =
               <Text style={styles.stopRowBadgeText}>{i + 1}</Text>
             </View>
             <View style={{ flex: 1 }}>
-              <Text style={styles.stopRowTitle} numberOfLines={1}>{stop.title.nl || stop.qrCode}</Text>
-              <Text style={styles.stopRowSub} numberOfLines={1}>QR: {stop.qrCode}</Text>
+              <Text style={styles.stopRowTitle} numberOfLines={1}>{stop.titleNl || stop.qrCodeId}</Text>
+              <Text style={styles.stopRowSub} numberOfLines={1}>QR: {stop.qrCodeId}</Text>
             </View>
           </View>
           <TouchableOpacity

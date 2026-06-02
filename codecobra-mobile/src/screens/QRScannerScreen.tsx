@@ -202,7 +202,7 @@ export function QRScannerScreen({ navigation, route }: Props) {
                   <Text style={styles.stopIndexText}>{index + 1}</Text>
                 </View>
                 <Text style={styles.stopTitle} numberOfLines={1}>
-                  {stop.title[language] || stop.qrCode}
+                  {language === "nl" ? stop.titleNl : stop.titleEn || stop.qrCodeId}
                 </Text>
                 <Ionicons name="chevron-forward" size={20} color={SECONDARY} />
               </TouchableOpacity>
