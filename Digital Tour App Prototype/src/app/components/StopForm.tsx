@@ -1,9 +1,22 @@
 import { useRef, useState } from "react";
 import { Stop, Language } from "../types";
 import plattegrondImg from "../../imports/PlattegrondGieterijBeganegrondV2.0.png";
+import {
+  normalizeMediaUrlForStorage,
+  resolveMediaUrl,
+  uploadMedia,
+} from "../../services/api";
 
 const MAP_W = 1528;
 const MAP_H = 704;
+
+type MediaKind = "image" | "video";
+
+function detectKindFromUrl(url: string): MediaKind {
+  const lower = url.toLowerCase();
+  if (/\.(mp4|webm|mov|m4v)(\?|$)/.test(lower)) return "video";
+  return "image";
+}
 
 interface StopFormProps {
   stop: Stop;
@@ -20,7 +33,20 @@ export function StopForm({
   onCancel,
   isCreating,
 }: StopFormProps) {
-  const [formData, setFormData] = useState<Stop>(stop);
+  const normalizedStop: Stop = {
+    ...stop,
+    locationNl: stop.locationNl ?? "",
+    locationEn: stop.locationEn ?? "",
+    titleNl: stop.titleNl ?? "",
+    titleEn: stop.titleEn ?? "",
+    descriptionNl: stop.descriptionNl ?? "",
+    descriptionEn: stop.descriptionEn ?? "",
+    estimatedDuration: stop.estimatedDuration ?? 1,
+    mediaUrl: normalizeMediaUrlForStorage(stop.mediaUrl) ?? null,
+  };
+
+  const [formData, setFormData] = useState<Stop>(normalizedStop);
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -53,6 +79,52 @@ export function StopForm({
 
   const updateField = (field: keyof Stop, value: any) => {
     setFormData({ ...formData, [field]: value });
+  };
+
+  const updateMedia = (url: string) => {
+    setFormData((prev) => ({
+      ...prev,
+      mediaUrl: normalizeMediaUrlForStorage(url),
+    }));
+  };
+
+  const removeMedia = () => {
+    setFormData((prev) => ({ ...prev, mediaUrl: null }));
+  };
+
+  const handleMediaFileUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    const file = files[0];
+
+    const isImage = file.type.startsWith("image/");
+    const isVideo = file.type.startsWith("video/");
+
+    if (!isImage && !isVideo) {
+      alert(
+        language === "nl"
+          ? "Alleen foto's en video's zijn toegestaan."
+          : "Only photos and videos are allowed.",
+      );
+      return;
+    }
+
+    try {
+      setIsUploadingMedia(true);
+      const uploaded = await uploadMedia(file, formData.qrCode?.id);
+      if (!uploaded?.filePath) {
+        throw new Error("Missing filePath in upload response");
+      }
+      updateMedia(uploaded.filePath);
+    } catch (error) {
+      console.error("Media upload failed:", error);
+      alert(
+        language === "nl"
+          ? "Uploaden van media is mislukt."
+          : "Uploading media failed.",
+      );
+    } finally {
+      setIsUploadingMedia(false);
+    }
   };
 
   return (
@@ -105,7 +177,7 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.locationNl}
+                value={formData.locationNl ?? ""}
                 onChange={(e) =>
                   updateField("locationNl", e.target.value)
                 }
@@ -122,7 +194,7 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.locationEn}
+                value={formData.locationEn ?? ""}
                 onChange={(e) =>
                   updateField("locationEn", e.target.value)
                 }
@@ -146,7 +218,7 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.titleNl}
+                value={formData.titleNl ?? ""}
                 onChange={(e) =>
                   updateField("titleNl", e.target.value)
                 }
@@ -163,7 +235,7 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.titleEn}
+                value={formData.titleEn ?? ""}
                 onChange={(e) =>
                   updateField("titleEn", e.target.value)
                 }
@@ -186,7 +258,7 @@ export function StopForm({
                   : "Description (Dutch)"}
               </label>
               <textarea
-                value={formData.descriptionNl}
+                value={formData.descriptionNl ?? ""}
                 onChange={(e) =>
                   updateField("descriptionNl", e.target.value)
                 }
@@ -202,7 +274,7 @@ export function StopForm({
                   : "Description (English) — optional"}
               </label>
               <textarea
-                value={formData.descriptionEn}
+                value={formData.descriptionEn ?? ""}
                 onChange={(e) =>
                   updateField("descriptionEn", e.target.value)
                 }
@@ -336,31 +408,32 @@ export function StopForm({
 
             {formData.mediaUrl ? (
               <div className="space-y-4">
+                <div className="rounded-lg border border-gray-200 overflow-hidden bg-black">
+                  {detectKindFromUrl(formData.mediaUrl) === "video" ? (
+                    <video
+                      src={resolveMediaUrl(formData.mediaUrl)}
+                      controls
+                      className="w-full max-h-[320px]"
+                    />
+                  ) : (
+                    <img
+                      src={resolveMediaUrl(formData.mediaUrl)}
+                      alt="Stop media"
+                      className="w-full max-h-[320px] object-contain bg-black"
+                    />
+                  )}
+                </div>
+
                 <div>
                   <label className="block text-lg mb-2">
-                    {language === "nl" ? "Type" : "Type"}
+                    {language === "nl" ? "Upload bestand" : "Upload file"}
                   </label>
-                  <select
-                    value={formData.media.type}
-                    onChange={(e) =>
-                      updateMedia(
-                        "type",
-                        e.target.value as
-                          | "image"
-                          | "video"
-                          | "audio",
-                      )
-                    }
-                    className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
-                  >
-                    <option value="image">
-                      {language === "nl"
-                        ? "Afbeelding"
-                        : "Image"}
-                    </option>
-                    <option value="video">Video</option>
-                    <option value="audio">Audio</option>
-                  </select>
+                  <input
+                    type="file"
+                    accept="image/*,video/*"
+                    onChange={(e) => handleMediaFileUpload(e.target.files)}
+                    className="w-full border-2 border-gray-300 rounded-lg p-3 text-base focus:border-[#0066B3] focus:outline-none"
+                  />
                 </div>
 
                 <div>
@@ -368,71 +441,45 @@ export function StopForm({
                     URL
                   </label>
                   <input
-                    type="url"
-                    value={formData.mediaUrl}
-                    onChange={(e) =>
-                      updateMedia("url", e.target.value)
-                    }
+                    type="text"
+                    value={formData.mediaUrl ?? ""}
+                    onChange={(e) => updateMedia(e.target.value)}
                     className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
-                    placeholder="https://..."
+                    placeholder="/uploads/... of https://..."
                     required
                   />
                 </div>
 
-                {formData.media.type === "video" && (
-                  <>
-                    <div>
-                      <label className="block text-lg mb-2">
-                        {language === "nl"
-                          ? "Duur (seconden)"
-                          : "Duration (seconds)"}
-                      </label>
-                      <input
-                        type="number"
-                        value={formData.media.duration || ""}
-                        onChange={(e) =>
-                          updateMedia(
-                            "duration",
-                            e.target.value
-                              ? parseInt(e.target.value)
-                              : undefined,
-                          )
-                        }
-                        className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
-                        min="1"
-                      />
-                    </div>
-                    <div>
-                      <label className="block text-lg mb-2">
-                        Thumbnail URL
-                      </label>
-                      <input
-                        type="url"
-                        value={formData.media.thumbnail || ""}
-                        onChange={(e) =>
-                          updateMedia(
-                            "thumbnail",
-                            e.target.value,
-                          )
-                        }
-                        className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
-                        placeholder="https://..."
-                      />
-                    </div>
-                  </>
+                {isUploadingMedia && (
+                  <p className="text-sm text-[#0066B3]">
+                    {language === "nl" ? "Uploaden..." : "Uploading..."}
+                  </p>
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => updateMedia("type", "image")}
-                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 text-lg text-gray-500 hover:border-[#0066B3] hover:text-[#0066B3] transition-colors"
-              >
-                +{" "}
-                {language === "nl"
-                  ? "Media toevoegen"
-                  : "Add media"}
-              </button>
+              <div className="space-y-3">
+                <button
+                  type="button"
+                  onClick={() => updateMedia("")}
+                  className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-lg text-gray-500 hover:border-[#0066B3] hover:text-[#0066B3] transition-colors"
+                >
+                  +{" "}
+                  {language === "nl"
+                    ? "Media toevoegen"
+                    : "Add media"}
+                </button>
+                <input
+                  type="file"
+                  accept="image/*,video/*"
+                  onChange={(e) => handleMediaFileUpload(e.target.files)}
+                  className="w-full border-2 border-gray-300 rounded-lg p-3 text-base focus:border-[#0066B3] focus:outline-none"
+                />
+                {isUploadingMedia && (
+                  <p className="text-sm text-[#0066B3]">
+                    {language === "nl" ? "Uploaden..." : "Uploading..."}
+                  </p>
+                )}
+              </div>
             )}
           </div>
 

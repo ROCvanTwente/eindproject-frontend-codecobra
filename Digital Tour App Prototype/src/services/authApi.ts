@@ -1,6 +1,6 @@
 const API_BASE_URL =
-  (import.meta as any).env?.VITE_API_BASE_URL ??
-  "https://localhost:7199";
+  (import.meta as any).env?.VITE_AUTH_BASE_URL ??
+  "http://localhost:5000";
 
 const TOKEN_KEY = "accessToken";
 const REFRESH_TOKEN_KEY = "refreshToken";

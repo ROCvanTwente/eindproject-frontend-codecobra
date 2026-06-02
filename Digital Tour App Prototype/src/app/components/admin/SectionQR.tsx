@@ -34,7 +34,7 @@ export function SectionQR({
         if (!stop.qrCode.id) continue;
         try {
           out[stop.qrCode.id] = await QRCode.toDataURL(
-            stop.qrCode.id,
+            String(stop.qrCode.id),
             { width: 220, margin: 1 },
           );
         } catch {}
@@ -104,7 +104,10 @@ export function SectionQR({
       );
       return;
     }
-    const newId = Math.max(0, ...stops.map((s) => s.id)) + 1;
+    const numericIds = stops
+      .map((s) => Number(s.id))
+      .filter((id) => Number.isFinite(id));
+    const newId = Math.max(0, ...numericIds) + 1;
     const newStop: Stop = {
       id: newId,
       qrCode: { id: newId, code, name: `QR Code ${newId}`, createdAt: new Date().toISOString(), statistics: [] },
