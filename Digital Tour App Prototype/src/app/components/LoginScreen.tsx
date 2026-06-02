@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminSettings, addHistory } from "../data/settings";
 import { Language, UserSession } from "../types";
-import { loginUser, setSessionData } from "../../services/authApi";
+import { loginUser } from "../../services/authApi";
 
 interface LoginScreenProps {
   settings: AdminSettings;
@@ -43,11 +43,6 @@ export function LoginScreen({
           username: data?.username ?? username,
           role: data?.role ?? 'admin',
         };
-
-        console.log("Creating session in LoginScreen:", session);
-        
-        // Store session in localStorage with role
-        setSessionData(session.username, session.role);
 
         // Notify parent app that login succeeded so it can switch to the admin view.
         onLogin(session);

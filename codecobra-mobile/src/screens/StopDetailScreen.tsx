@@ -91,7 +91,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
       return;
     }
     if (!stop) return;
-    const text = `${language === "nl" ? stop.titleNl : stop.titleEn}. ${language === "nl" ? stop.descriptionNl : stop.descriptionEn}`;
+    const text = `${stop.title[language]}. ${stop.description[language]}`;
     try {
       await Tts.getInitStatus();
       await Tts.setDefaultLanguage(language === "nl" ? "nl-NL" : "en-US");
@@ -195,8 +195,8 @@ export function StopDetailScreen({ navigation, route }: Props) {
         </View>
 
         <ScrollView ref={scrollRef} style={styles.textScroll} contentContainerStyle={styles.textContent}>
-          <Text style={styles.stopTitle}>{language === "nl" ? stop.titleNl : stop.titleEn}</Text>
-          <Text style={styles.stopDescription}>{language === "nl" ? stop.descriptionNl : stop.descriptionEn}</Text>
+          <Text style={styles.stopTitle}>{stop.title[language]}</Text>
+          <Text style={styles.stopDescription}>{stop.description[language]}</Text>
 
           {isLastStop ? (
             <View style={styles.endCard}>

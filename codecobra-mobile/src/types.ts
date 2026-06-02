@@ -2,20 +2,19 @@ export type Language = "nl" | "en";
 
 export interface Stop {
   id: number;
-  qrCodeId: string;
-  locationNl: string;
-  locationEn: string;
-  titleNl: string;
-  titleEn: string;
-  descriptionNl: string;
-  descriptionEn: string;
-  positionX?: number;
-  positionY?: number;
+  qrCode: string;
+  location: { nl: string; en: string };
+  title: { nl: string; en: string };
+  description: { nl: string; en: string };
+  media?: {
+    type: "image" | "video" | "audio";
+    url: string;
+    duration?: number;
+    thumbnail?: string;
+  };
   estimatedDuration: number;
-  createdAt: string;
-  updatedAt: string;
-  order: number;
-  mediaUrl?: string;
+  mapX?: number;
+  mapY?: number;
 }
 
 export interface TourData {
