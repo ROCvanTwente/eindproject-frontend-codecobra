@@ -24,6 +24,7 @@ import {
   AdminSettings,
   addHistory,
 } from "../data/settings";
+import { AddTourStop, updateTourStop } from "../../services/api";
 
 import { SectionHome } from "./admin/SectionHome";
 import { SectionStops } from "./admin/SectionStops";
@@ -90,35 +91,60 @@ export function AdminPanel({
 
   // ── Stop edit screen (kept from original flow) ─────────────────────────────
   if (editingStop || isCreating) {
-    const handleSave = (stop: Stop) => {
+    const handleSave = async (stop: Stop) => {
       const actor =
         settings.currentSession?.username ?? "admin";
-      if (isCreating) {
-        const newId =
-          Math.max(...stops.map((s) => s.id), 0) + 1;
-        onUpdateStops([...stops, { ...stop, id: newId }]);
-        onUpdateSettings(
-          {},
-          {
-            action: "create-stop",
-            target: stop.title.nl || `#${newId}`,
-          },
+      
+      try {
+        // Convert stop object to FormData for API
+        const formData = new FormData();
+        formData.append("qrCode", stop.qrCode.code);
+        formData.append("locationNl", stop.locationNl);
+        formData.append("locationEn", stop.locationEn);
+        formData.append("titleNl", stop.titleNl);
+        formData.append("titleEn", stop.titleEn);
+        formData.append("descriptionNl", stop.descriptionNl);
+        formData.append("descriptionEn", stop.descriptionEn);
+        formData.append("estimatedDuration", stop.estimatedDuration.toString());
+        if (stop.positionX !== undefined) formData.append("positionX", stop.positionX.toString());
+        if (stop.positionY !== undefined) formData.append("positionY", stop.positionY.toString());
+        if (stop.mediaUrl) formData.append("mediaUrl", stop.mediaUrl);
+
+        if (isCreating) {
+          console.log("Creating new stop via API:", stop);
+          const response = await AddTourStop(formData);
+          console.log("Create response:", response);
+          onUpdateSettings(
+            {},
+            {
+              action: "create-stop",
+              target: stop.titleNl || `#${stop.id}`,
+            },
+          );
+        } else {
+          console.log("Updating stop via API:", stop);
+          const response = await updateTourStop(stop.id, formData);
+          console.log("Update response:", response);
+          onUpdateSettings(
+            {},
+            {
+              action: "update-stop",
+              target: stop.titleNl || `#${stop.id}`,
+            },
+          );
+        }
+      } catch (error) {
+        console.error("Error saving stop:", error);
+        alert(
+          language === "nl"
+            ? "Fout bij opslaan van stop"
+            : "Error saving stop"
         );
-      } else {
-        onUpdateStops(
-          stops.map((s) => (s.id === stop.id ? stop : s)),
-        );
-        onUpdateSettings(
-          {},
-          {
-            action: "update-stop",
-            target: stop.title.nl || `#${stop.id}`,
-          },
-        );
+      } finally {
+        void actor;
+        setEditingStop(null);
+        setIsCreating(false);
       }
-      void actor;
-      setEditingStop(null);
-      setIsCreating(false);
     };
     return (
       <StopForm
@@ -147,11 +173,9 @@ export function AdminPanel({
     onBack();
   };
 
-  const currentUserRole = settings.accounts.find(
-    (acc) => acc.username === settings.currentSession?.username,
-  )?.role;
+  const currentUserRole = settings.currentSession?.role;
 
-  const isAdminUser = currentUserRole === "Admin";
+  const isAdminUser = currentUserRole === "admin";
 
   const renderSection = () => {
     switch (section) {
@@ -169,21 +193,26 @@ export function AdminPanel({
         return (
           <SectionStops
             language={language}
-            stops={stops}
-            onUpdateStops={onUpdateStops}
             onEdit={(s) => setEditingStop(s)}
             onCreate={() => {
               setEditingStop({
                 id: 0,
-                qrCode: "",
-                location: { nl: "", en: "" },
-                title: { nl: "", en: "" },
-                description: { nl: "", en: "" },
+                qrCode: { id: 0, code: "", name: "", createdAt: new Date().toISOString(), statistics: [] },
+                locationNl: "",
+                locationEn: "",
+                titleNl: "",
+                titleEn: "",
+                descriptionNl: "",
+                descriptionEn: "",
                 estimatedDuration: 3,
+                createdAt: new Date().toISOString(),
+                updatedAt: new Date().toISOString(),
+                order: 0,
               });
               setIsCreating(true);
             }}
             log={(a, t) => onUpdateSettings({}, { action: a, target: t })}
+            onStopsChange={onUpdateStops}
           />
         );
       case "background":

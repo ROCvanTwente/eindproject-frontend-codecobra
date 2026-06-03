@@ -10,6 +10,11 @@ import {
   QrCode,
 } from "lucide-react";
 import { Language, Stop } from "../../types";
+import {
+  resolveMediaUrl,
+  updateStopMedia,
+  uploadMedia,
+} from "../../../services/api";
 
 interface Props {
   language: Language;
@@ -25,13 +30,14 @@ function detectKind(file: File): MediaKind {
   return "image";
 }
 
-function readAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
+function detectKindFromUrl(url: string): MediaKind {
+  const lower = url.toLowerCase();
+  if (lower.startsWith("data:video/")) return "video";
+  if (lower.startsWith("data:audio/")) return "audio";
+  if (lower.startsWith("data:image/")) return "image";
+  if (/(\.mp4|\.webm|\.mov)(\?|$)/.test(lower)) return "video";
+  if (/(\.mp3|\.wav|\.ogg)(\?|$)/.test(lower)) return "audio";
+  return "image";
 }
 
 export function SectionMedia({
@@ -42,12 +48,14 @@ export function SectionMedia({
   const [qrMap, setQrMap] = useState<Record<string, string>>(
     {},
   );
-  const [dragId, setDragId] = useState<number | null>(null);
-  const [urlFormId, setUrlFormId] = useState<number | null>(
+  const [dragId, setDragId] = useState<Stop["id"] | null>(null);
+  const [urlFormId, setUrlFormId] = useState<Stop["id"] | null>(
     null,
   );
+  const [uploadingByStopId, setUploadingByStopId] = useState<
+    Record<string, boolean>
+  >({});
   const [urlForm, setUrlForm] = useState({
-    type: "image" as MediaKind,
     url: "",
   });
 
@@ -56,9 +64,9 @@ export function SectionMedia({
     (async () => {
       const out: Record<string, string> = {};
       for (const s of stops) {
-        if (!s.qrCode) continue;
+        if (!s.qrCode?.code) continue;
         try {
-          out[s.qrCode] = await QRCode.toDataURL(s.qrCode, {
+          out[s.qrCode.code] = await QRCode.toDataURL(s.qrCode.code, {
             width: 140,
             margin: 1,
           });
@@ -71,38 +79,105 @@ export function SectionMedia({
     };
   }, [stops]);
 
-  const updateMedia = (
-    stopId: number,
-    media: Stop["media"],
+  const updateMediaUrl = async (
+    stopId: Stop["id"],
+    mediaUrl?: string,
   ) => {
-    onUpdateStops(
-      stops.map((s) => (s.id === stopId ? { ...s, media } : s)),
-    );
+    const stopKey = String(stopId);
+    try {
+      setUploadingByStopId((prev) => ({
+        ...prev,
+        [stopKey]: true,
+      }));
+
+      await updateStopMedia(stopId, mediaUrl ?? null);
+
+      onUpdateStops(
+        stops.map((s) =>
+          s.id === stopId
+            ? { ...s, mediaUrl: mediaUrl ?? null }
+            : s,
+        ),
+      );
+    } finally {
+      setUploadingByStopId((prev) => ({
+        ...prev,
+        [stopKey]: false,
+      }));
+    }
   };
 
   const handleFiles = async (
-    stopId: number,
+    stopId: Stop["id"],
     files: FileList | null,
   ) => {
     if (!files || files.length === 0) return;
     const file = files[0];
-    const kind = detectKind(file);
-    const url = await readAsDataURL(file);
-    updateMedia(stopId, { type: kind, url });
+    const mediaKind = detectKind(file);
+
+    if (mediaKind !== "image") {
+      alert(
+        language === "nl"
+          ? "Alleen afbeeldingen kunnen direct naar de backend geupload worden. Gebruik een URL voor video of audio."
+          : "Only images can be uploaded directly to the backend. Use a URL for video or audio.",
+      );
+      return;
+    }
+
+    const stop = stops.find((s) => s.id === stopId);
+    const stopKey = String(stopId);
+
+    try {
+      setUploadingByStopId((prev) => ({
+        ...prev,
+        [stopKey]: true,
+      }));
+
+      const uploaded = await uploadMedia(file, stop?.qrCode?.id);
+      const dbMediaUrl = uploaded?.filePath;
+
+      if (!dbMediaUrl) {
+        throw new Error(
+          language === "nl"
+            ? "Upload gelukt, maar geen bruikbare bestands-URL ontvangen."
+            : "Upload succeeded, but no usable file URL was returned.",
+        );
+      }
+
+      await updateMediaUrl(stopId, dbMediaUrl);
+    } catch (error) {
+      console.error("Media upload failed:", error);
+      alert(
+        language === "nl"
+          ? "Uploaden van media naar de backend is mislukt."
+          : "Uploading media to the backend failed.",
+      );
+    } finally {
+      setUploadingByStopId((prev) => ({
+        ...prev,
+        [stopKey]: false,
+      }));
+    }
   };
 
-  const saveUrl = () => {
+  const saveUrl = async () => {
     if (urlFormId == null || !urlForm.url.trim()) return;
-    updateMedia(urlFormId, {
-      type: urlForm.type,
-      url: urlForm.url.trim(),
-    });
-    setUrlFormId(null);
-    setUrlForm({ type: "image", url: "" });
+    try {
+      await updateMediaUrl(urlFormId, urlForm.url.trim());
+      setUrlFormId(null);
+      setUrlForm({ url: "" });
+    } catch (error) {
+      console.error("Saving media URL failed:", error);
+      alert(
+        language === "nl"
+          ? "Opslaan van media-URL is mislukt."
+          : "Saving media URL failed.",
+      );
+    }
   };
 
   const remove = (stop: Stop) => {
-    if (!stop.media) return;
+    if (!stop.mediaUrl) return;
     if (
       confirm(
         language === "nl"
@@ -110,7 +185,14 @@ export function SectionMedia({
           : "Remove media?",
       )
     ) {
-      updateMedia(stop.id, undefined);
+      void updateMediaUrl(stop.id, undefined).catch((error) => {
+        console.error("Removing media failed:", error);
+        alert(
+          language === "nl"
+            ? "Verwijderen van media is mislukt."
+            : "Removing media failed.",
+        );
+      });
     }
   };
 
@@ -129,9 +211,14 @@ export function SectionMedia({
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {stops.map((stop) => {
+          const isUploading = !!uploadingByStopId[String(stop.id)];
           const isDragging = dragId === stop.id;
-          const hasMedia = !!stop.media;
-          const m = stop.media;
+          const hasMedia = !!stop.mediaUrl;
+          const mediaUrlRaw = stop.mediaUrl ?? "";
+          const mediaUrl = resolveMediaUrl(mediaUrlRaw);
+          const mediaKind = hasMedia
+            ? detectKindFromUrl(mediaUrlRaw)
+            : "image";
           return (
             <div
               key={stop.id}
@@ -141,17 +228,17 @@ export function SectionMedia({
               <div className="flex items-start gap-3 mb-3">
                 <div className="flex-1 min-w-0">
                   <p className="text-lg truncate">
-                    {stop.title[language]}
+                    {language === "nl" ? stop.titleNl : stop.titleEn}
                   </p>
                   <p className="text-xs text-gray-500 truncate">
-                    {stop.location[language]}
+                    {language === "nl" ? stop.locationNl : stop.locationEn}
                   </p>
                 </div>
                 <div className="flex flex-col items-center flex-shrink-0">
-                  {qrMap[stop.qrCode] ? (
+                  {qrMap[stop.qrCode.code] ? (
                     <img
-                      src={qrMap[stop.qrCode]}
-                      alt={stop.qrCode}
+                      src={qrMap[stop.qrCode.code]}
+                      alt={stop.qrCode.code}
                       className="w-16 h-16 border border-gray-200 rounded"
                     />
                   ) : (
@@ -160,7 +247,7 @@ export function SectionMedia({
                     </div>
                   )}
                   <span className="text-[10px] text-gray-500 mt-1 font-mono">
-                    {stop.qrCode || "—"}
+                    {stop.qrCode.code || "—"}
                   </span>
                 </div>
               </div>
@@ -196,27 +283,32 @@ export function SectionMedia({
                       : "border-gray-300 bg-gray-50 hover:border-[#0066B3]"
                 }`}
               >
+                {isUploading && (
+                  <div className="absolute inset-0 z-10 bg-white/80 backdrop-blur-[1px] flex items-center justify-center text-sm text-[#0066B3]">
+                    {language === "nl" ? "Uploaden..." : "Uploading..."}
+                  </div>
+                )}
                 {hasMedia ? (
                   <div className="aspect-video bg-black flex items-center justify-center">
-                    {m!.type === "image" && (
+                    {mediaKind === "image" && (
                       <img
-                        src={m!.url}
+                        src={mediaUrl}
                         alt=""
                         className="w-full h-full object-cover"
                       />
                     )}
-                    {m!.type === "video" && (
+                    {mediaKind === "video" && (
                       <video
-                        src={m!.url}
+                        src={mediaUrl}
                         className="w-full h-full object-cover"
                         muted
                       />
                     )}
-                    {m!.type === "audio" && (
+                    {mediaKind === "audio" && (
                       <div className="flex flex-col items-center text-white gap-2">
                         <Music className="w-10 h-10" />
                         <audio
-                          src={m!.url}
+                          src={mediaUrl}
                           controls
                           className="max-w-full"
                         />
@@ -251,16 +343,16 @@ export function SectionMedia({
                 <div className="flex items-center gap-2 text-gray-600">
                   {hasMedia ? (
                     <>
-                      {m!.type === "image" && (
+                      {mediaKind === "image" && (
                         <ImageIcon className="w-4 h-4" />
                       )}
-                      {m!.type === "video" && (
+                      {mediaKind === "video" && (
                         <Film className="w-4 h-4" />
                       )}
-                      {m!.type === "audio" && (
+                      {mediaKind === "audio" && (
                         <Music className="w-4 h-4" />
                       )}
-                      <span>{m!.type}</span>
+                      <span>{mediaKind}</span>
                     </>
                   ) : (
                     <span className="text-gray-400">
@@ -277,8 +369,7 @@ export function SectionMedia({
                         urlFormId === stop.id ? null : stop.id,
                       );
                       setUrlForm({
-                        type: (m?.type as MediaKind) ?? "image",
-                        url: m?.url ?? "",
+                        url: stop.mediaUrl ?? "",
                       });
                     }}
                     className="p-2 text-[#0066B3] hover:bg-blue-50 rounded-lg"
@@ -301,26 +392,6 @@ export function SectionMedia({
               {/* URL form */}
               {urlFormId === stop.id && (
                 <div className="mt-3 pt-3 border-t border-gray-200 grid grid-cols-1 md:grid-cols-4 gap-2">
-                  <select
-                    value={urlForm.type}
-                    onChange={(e) =>
-                      setUrlForm({
-                        ...urlForm,
-                        type: e.target.value as MediaKind,
-                      })
-                    }
-                    className="px-3 py-2 rounded-lg border-2 border-gray-300"
-                  >
-                    <option value="image">
-                      {language === "nl" ? "Foto" : "Image"}
-                    </option>
-                    <option value="video">
-                      {language === "nl" ? "Video" : "Video"}
-                    </option>
-                    <option value="audio">
-                      {language === "nl" ? "Audio" : "Audio"}
-                    </option>
-                  </select>
                   <input
                     type="text"
                     value={urlForm.url}
@@ -331,7 +402,7 @@ export function SectionMedia({
                       })
                     }
                     placeholder="https://…"
-                    className="md:col-span-2 px-3 py-2 rounded-lg border-2 border-gray-300"
+                    className="md:col-span-3 px-3 py-2 rounded-lg border-2 border-gray-300"
                   />
                   <button
                     onClick={saveUrl}

@@ -31,10 +31,10 @@ export function SectionQR({
     (async () => {
       const out: Record<string, string> = {};
       for (const stop of stops) {
-        if (!stop.qrCode) continue;
+        if (!stop.qrCode.id) continue;
         try {
-          out[stop.qrCode] = await QRCode.toDataURL(
-            stop.qrCode,
+          out[stop.qrCode.id] = await QRCode.toDataURL(
+            String(stop.qrCode.id),
             { width: 220, margin: 1 },
           );
         } catch {}
@@ -69,7 +69,7 @@ export function SectionQR({
     if (!code || linkToStopId === "") return;
     if (
       stops.some(
-        (s) => s.qrCode === code && s.id !== linkToStopId,
+        (s) => s.qrCode.code === code && s.id !== linkToStopId,
       )
     ) {
       alert(
@@ -81,22 +81,22 @@ export function SectionQR({
     }
     onUpdateStops(
       stops.map((s) =>
-        s.id === linkToStopId ? { ...s, qrCode: code } : s,
+        s.id === linkToStopId ? { ...s, qrCode: { ...s.qrCode, code } } : s,
       ),
     );
     log("link-qr-to-stop", `${code} → #${linkToStopId}`);
     const target = stops.find((s) => s.id === linkToStopId);
     alert(
       language === "nl"
-        ? `QR-code "${code}" gekoppeld aan "${target?.title.nl ?? "#" + linkToStopId}".`
-        : `QR code "${code}" linked to "${target?.title.en ?? "#" + linkToStopId}".`,
+        ? `QR-code "${code}" gekoppeld aan "${target?.titleNl ?? "#" + linkToStopId}".`
+        : `QR code "${code}" linked to "${target?.titleEn ?? "#" + linkToStopId}".`,
     );
   };
 
   const createStopFromCode = () => {
     const code = customText.trim();
     if (!code) return;
-    if (stops.some((s) => s.qrCode === code)) {
+    if (stops.some((s) => s.qrCode?.code === code)) {
       alert(
         language === "nl"
           ? "Deze QR-code bestaat al."
@@ -104,20 +104,26 @@ export function SectionQR({
       );
       return;
     }
-    const newId = Math.max(0, ...stops.map((s) => s.id)) + 1;
+    const numericIds = stops
+      .map((s) => Number(s.id))
+      .filter((id) => Number.isFinite(id));
+    const newId = Math.max(0, ...numericIds) + 1;
     const newStop: Stop = {
       id: newId,
-      qrCode: code,
-      location: { nl: "", en: "" },
-      title: {
-        nl:
-          language === "nl"
-            ? `Nieuwe stop (${code})`
-            : `New stop (${code})`,
-        en: `New stop (${code})`,
-      },
-      description: { nl: "", en: "" },
+      qrCode: { id: newId, code, name: `QR Code ${newId}`, createdAt: new Date().toISOString(), statistics: [] },
+      locationNl: "",
+      locationEn: "",
+      titleNl:
+        language === "nl"
+          ? `Nieuwe stop (${code})`
+          : `New stop (${code})`,
+      titleEn: `New stop (${code})`,
+      descriptionNl: "",
+      descriptionEn: "",
       estimatedDuration: 3,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      order: stops.length,
     };
     onUpdateStops([...stops, newStop]);
     log("create-stop-from-qr", code);
@@ -148,10 +154,10 @@ export function SectionQR({
             className="border-2 border-gray-200 rounded-xl p-3 text-center"
           >
             <div className="bg-white rounded-lg p-2 mb-2">
-              {urls[stop.qrCode] ? (
+              {urls[stop.qrCode.id] ? (
                 <img
-                  src={urls[stop.qrCode]}
-                  alt={stop.qrCode}
+                  src={urls[stop.qrCode.id]}
+                  alt={stop.qrCode?.code}
                   className="w-full"
                 />
               ) : (
@@ -161,17 +167,17 @@ export function SectionQR({
               )}
             </div>
             <p className="text-sm text-gray-700 mb-1">
-              {stop.title[language]}
+              {language === "nl" ? stop.titleNl : stop.titleEn}
             </p>
             <p className="text-xs text-gray-500 mb-2 font-mono">
-              {stop.qrCode}
+              {stop.qrCode?.id}
             </p>
-            {urls[stop.qrCode] && (
+            {urls[stop.qrCode.id] && (
               <button
                 onClick={() =>
                   download(
-                    urls[stop.qrCode],
-                    `qr-${stop.qrCode}.png`,
+                    urls[stop.qrCode.id],
+                    `qr-${stop.qrCode.id}.png`,
                   )
                 }
                 className="w-full bg-[#0066B3] text-white text-sm py-1.5 rounded-lg hover:opacity-90 flex items-center justify-center gap-1"
@@ -255,8 +261,8 @@ export function SectionQR({
                   </option>
                   {stops.map((s) => (
                     <option key={s.id} value={s.id}>
-                      {s.title[language] || `#${s.id}`}{" "}
-                      {s.qrCode ? `(${s.qrCode})` : ""}
+                      {s.titleNl || s.titleEn || `#${s.id}`}{" "}
+                      {s.qrCode?.id ? `(${s.qrCode.id})` : ""}
                     </option>
                   ))}
                 </select>
