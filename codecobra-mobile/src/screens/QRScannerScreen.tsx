@@ -35,18 +35,69 @@ export function QRScannerScreen({ navigation, route }: Props) {
   const toggleLanguage = () =>
     setLanguage((prev) => (prev === "nl" ? "en" : "nl"));
 
+  const normalizeQrValue = (value: string) => {
+    const trimmed = value.trim();
+
+    try {
+      const url = new URL(trimmed);
+      return (
+        url.searchParams.get("qrCodeId") ??
+        url.searchParams.get("code") ??
+        url.searchParams.get("id") ??
+        url.pathname.split("/").filter(Boolean).at(-1) ??
+        trimmed
+      );
+    } catch {
+      return trimmed;
+    }
+  };
+
+  const showValidScanMessage = (stop: (typeof stops)[number], qrCode: string) => {
+    const stopName = language === "nl" ? stop.titleNl : stop.titleEn || stop.titleNl;
+    const message =
+      language === "nl"
+        ? [
+            `Gescande QR-code: ${qrCode}`,
+            `Stop-id: ${stop.id}`,
+            `Stopnaam: ${stopName}`,
+            `Gekoppelde stop: ${stopName}`,
+          ].join("\n")
+        : [
+            `Scanned QR code: ${qrCode}`,
+            `Stop id: ${stop.id}`,
+            `Stop name: ${stopName}`,
+            `Connected stop: ${stopName}`,
+          ].join("\n");
+
+    Alert.alert(
+      language === "nl" ? "Geldige QR-code" : "Valid QR code",
+      message,
+      [
+        {
+          text: language === "nl" ? "Verder" : "Continue",
+          onPress: () => navigation.push("StopDetail", { stopId: stop.id, language }),
+        },
+      ],
+    );
+  };
+
   const handleBarCodeScanned = async ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
-    const stop = stops.find((s) => s.qrCode === data);
+    const normalizedData = normalizeQrValue(data);
+    const stop = stops.find((s) => {
+      const qrMatches = normalizeQrValue(s.qrCodeId) === normalizedData;
+      const stopIdMatches = String(s.id) === normalizedData;
+      return qrMatches || stopIdMatches;
+    });
     if (stop) {
       try {
-        await recordScan(data);
+        await recordScan(normalizedData);
       } catch (error) {
         console.warn("Scan not recorded:", error);
       }
       setScanning(false);
-      navigation.push("StopDetail", { stopId: stop.id, language });
+      showValidScanMessage(stop, normalizedData);
     } else {
       Alert.alert(
         language === "nl" ? "Onbekende QR-code" : "Unknown QR code",
