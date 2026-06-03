@@ -7,7 +7,6 @@ import { QRScannerScreen } from "./src/screens/QRScannerScreen";
 import { StopDetailScreen } from "./src/screens/StopDetailScreen";
 import { RouteOverviewScreen } from "./src/screens/RouteOverviewScreen";
 import { FloorPlanScreen } from "./src/screens/FloorPlanScreen";
-import { AdminScreen } from "./src/screens/AdminScreen";
 import { Language } from "./src/types";
 import { useEffect } from "react";
 
@@ -17,7 +16,6 @@ export type RootStackParamList = {
   StopDetail: { stopId: number; language: Language };
   RouteOverview: { language: Language };
   FloorPlan: { language: Language };
-  Admin: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -36,7 +34,6 @@ export default function App() {
           <Stack.Screen name="StopDetail" component={StopDetailScreen} />
           <Stack.Screen name="RouteOverview" component={RouteOverviewScreen} />
           <Stack.Screen name="FloorPlan" component={FloorPlanScreen} />
-          <Stack.Screen name="Admin" component={AdminScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AppProvider>
