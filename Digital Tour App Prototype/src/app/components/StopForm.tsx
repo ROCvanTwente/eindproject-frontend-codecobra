@@ -26,6 +26,27 @@ interface StopFormProps {
   isCreating: boolean;
 }
 
+function normalizeQrCode(stop: Stop) {
+  const current = (stop as any).qrCode;
+  if (current?.code) {
+    return current;
+  }
+
+  const qrCodeId = (stop as any).qrCodeId;
+  const fallbackCode =
+    qrCodeId !== undefined && qrCodeId !== null
+      ? String(qrCodeId)
+      : "";
+
+  return {
+    id: Number(qrCodeId ?? 0),
+    code: fallbackCode,
+    name: fallbackCode,
+    createdAt: new Date().toISOString(),
+    statistics: [],
+  };
+}
+
 export function StopForm({
   stop,
   language,
@@ -35,6 +56,7 @@ export function StopForm({
 }: StopFormProps) {
   const normalizedStop: Stop = {
     ...stop,
+    qrCode: normalizeQrCode(stop),
     locationNl: stop.locationNl ?? "",
     locationEn: stop.locationEn ?? "",
     titleNl: stop.titleNl ?? "",

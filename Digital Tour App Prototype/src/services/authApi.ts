@@ -3,16 +3,21 @@ const API_BASE_URL =
   "http://localhost:5000";
 
 const TOKEN_KEY = "accessToken";
+const LEGACY_TOKEN_KEY = "token";
 const REFRESH_TOKEN_KEY = "refreshToken";
 
 const buildUrl = (path: string) => `${API_BASE_URL.replace(/\/$/, "")}${path}`;
 
 export function setAccessToken(token: string) {
   localStorage.setItem(TOKEN_KEY, token);
+  localStorage.setItem(LEGACY_TOKEN_KEY, token);
 }
 
 export function getAccessToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  return (
+    localStorage.getItem(TOKEN_KEY) ??
+    localStorage.getItem(LEGACY_TOKEN_KEY)
+  );
 }
 
 export function setRefreshToken(token: string) {
@@ -25,6 +30,7 @@ export function getRefreshToken() {
 
 export function clearTokens() {
   localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(LEGACY_TOKEN_KEY);
   localStorage.removeItem(REFRESH_TOKEN_KEY);
 }
 
@@ -39,18 +45,22 @@ export function getAuthHeaders() {
 }
 
 export async function loginUser(email: string, password: string) {
-  const response = await fetch(buildUrl("/login"), {
+  const response = await fetch(
+    buildUrl("/login?useCookies=false&useSessionCookies=false"),
+    {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
     body: JSON.stringify({ email, password }),
-  });
+    },
+  );
+
+  const data = await response.json().catch(() => ({}));
 
   if (response.ok) {
-    const data = await response.json();
     console.log("Login response data:", data);
-    
+
     if (data.accessToken) {
       setAccessToken(data.accessToken);
     }
@@ -58,11 +68,10 @@ export async function loginUser(email: string, password: string) {
       setRefreshToken(data.refreshToken);
     }
   } else {
-    const errorData = await response.json().catch(() => ({}));
-    console.error("Login error response:", response.status, errorData);
+    console.error("Login error response:", response.status, data);
   }
 
-  return response;
+  return { ok: response.ok, status: response.status, data };
 }
 
 export function setSessionData(username: string, role: string) {
@@ -84,7 +93,7 @@ export function clearSessionData() {
 }
 
 export async function registerUser(email: string, password: string) {
-  return fetch(buildUrl("/register"), {
+  return fetch(buildUrl("/register?useCookies=false&useSessionCookies=false"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",

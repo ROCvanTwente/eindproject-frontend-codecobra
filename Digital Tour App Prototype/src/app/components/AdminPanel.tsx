@@ -17,6 +17,7 @@ import {
   Menu,
   X,
   Image as ImageIcon,
+  Map,
 } from "lucide-react";
 import { Stop, Language, SectionKey } from "../types";
 import { StopForm } from "./StopForm";
@@ -32,6 +33,7 @@ import { SectionTextSpeech } from "./admin/SectionTextSpeech";
 import { SectionBackground } from "./admin/SectionBackground";
 import { SectionAccounts } from "./admin/SectionAccounts";
 import { SectionQR } from "./admin/SectionQR";
+import { SectionFloorPlan } from "./admin/SectionFloorPlan";
 import { SectionStats } from "./admin/SectionStats";
 import { SectionMedia } from "./admin/SectionMedia";
 import { SectionHistory } from "./admin/SectionHistory";
@@ -62,6 +64,7 @@ export const SECTION_META: Array<{
   { key: "stops", icon: MapPin, nl: "Stops beheren", en: "Manage stops" },
   { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
+  { key: "floorPlan", icon: Map, nl: "Plattegrond", en: "Floor plan" },
   // theme removed
   { key: "background", icon: ImageIcon, nl: "Achtergrond", en: "Background" },
   { key: "textSpeech", icon: Volume2, nl: "Tekst & spraak", en: "Text & speech" },
@@ -73,6 +76,11 @@ export const SECTION_META: Array<{
   { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
   { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
 ];
+
+const VISIBLE_DASHBOARD_KEYS: SectionKey[] = ["home", "stops", "qr", "floorPlan", "accounts"];
+const VISIBLE_SECTION_META = SECTION_META.filter((s) =>
+  VISIBLE_DASHBOARD_KEYS.includes(s.key),
+);
 
 export function AdminPanel({
   stops,
@@ -98,16 +106,42 @@ export function AdminPanel({
       try {
         // Convert stop object to FormData for API
         const formData = new FormData();
-        formData.append("qrCode", stop.qrCode.code);
-        formData.append("locationNl", stop.locationNl);
-        formData.append("locationEn", stop.locationEn);
-        formData.append("titleNl", stop.titleNl);
-        formData.append("titleEn", stop.titleEn);
-        formData.append("descriptionNl", stop.descriptionNl);
-        formData.append("descriptionEn", stop.descriptionEn);
-        formData.append("estimatedDuration", stop.estimatedDuration.toString());
-        if (stop.positionX !== undefined) formData.append("positionX", stop.positionX.toString());
-        if (stop.positionY !== undefined) formData.append("positionY", stop.positionY.toString());
+        const qrCodeText =
+          stop.qrCode?.code?.trim() ||
+          (((stop as any).qrCodeId != null)
+            ? String((stop as any).qrCodeId)
+            : "");
+
+        if (!qrCodeText) {
+          alert(
+            language === "nl"
+              ? "QR-code ontbreekt voor deze stop."
+              : "QR code is missing for this stop.",
+          );
+          return;
+        }
+
+        formData.append("qrCode", qrCodeText);
+        formData.append("locationNl", stop.locationNl ?? "");
+        formData.append("locationEn", stop.locationEn ?? "");
+        formData.append("titleNl", stop.titleNl ?? "");
+        formData.append("titleEn", stop.titleEn ?? "");
+        formData.append("descriptionNl", stop.descriptionNl ?? "");
+        formData.append("descriptionEn", stop.descriptionEn ?? "");
+
+        const estimatedDurationValue = Number(stop.estimatedDuration);
+        if (!Number.isFinite(estimatedDurationValue) || estimatedDurationValue <= 0) {
+          alert(
+            language === "nl"
+              ? "Geschatte duur ontbreekt of is ongeldig."
+              : "Estimated duration is missing or invalid.",
+          );
+          return;
+        }
+        formData.append("estimatedDuration", String(estimatedDurationValue));
+
+        if (stop.positionX != null) formData.append("positionX", String(stop.positionX));
+        if (stop.positionY != null) formData.append("positionY", String(stop.positionY));
         if (stop.mediaUrl) formData.append("mediaUrl", stop.mediaUrl);
 
         if (isCreating) {
@@ -175,7 +209,8 @@ export function AdminPanel({
 
   const currentUserRole = settings.currentSession?.role;
 
-  const isAdminUser = currentUserRole === "admin";
+  const isAdminUser =
+    (currentUserRole ?? "").toLowerCase() === "admin";
 
   const renderSection = () => {
     switch (section) {
@@ -185,7 +220,7 @@ export function AdminPanel({
             language={language}
             settings={settings}
             onNavigate={setSection}
-            sectionMeta={SECTION_META}
+            sectionMeta={VISIBLE_SECTION_META}
             isAdminUser={isAdminUser}
           />
         );
@@ -238,7 +273,7 @@ export function AdminPanel({
               language={language}
               settings={settings}
               onNavigate={setSection}
-              sectionMeta={SECTION_META}
+              sectionMeta={VISIBLE_SECTION_META}
               isAdminUser={isAdminUser}
             />
           );
@@ -257,6 +292,13 @@ export function AdminPanel({
             stops={stops}
             onUpdateStops={onUpdateStops}
             log={(a, t) => onUpdateSettings({}, { action: a, target: t })}
+          />
+        );
+      case "floorPlan":
+        return (
+          <SectionFloorPlan
+            language={language}
+            stops={stops}
           />
         );
       case "stats":
@@ -306,7 +348,7 @@ export function AdminPanel({
             language={language}
             settings={settings}
             onNavigate={setSection}
-            sectionMeta={SECTION_META}
+            sectionMeta={VISIBLE_SECTION_META}
             isAdminUser={isAdminUser}
           />
         );
@@ -385,7 +427,7 @@ export function AdminPanel({
           </button>
         </div>
         <div className="overflow-y-auto h-[calc(100vh-60px)] p-2">
-          {SECTION_META.filter(
+          {VISIBLE_SECTION_META.filter(
             (s) => !s.disabled && !(s.key === "accounts" && !isAdminUser)
           ).map((s) => {
             const Icon = s.icon;
@@ -415,7 +457,7 @@ export function AdminPanel({
         {/* Desktop sidebar */}
         <aside className="hidden md:block md:w-64 md:flex-shrink-0">
           <nav className="bg-white rounded-xl border-2 border-gray-200 p-2 flex flex-col gap-1 md:sticky md:top-20">
-            {SECTION_META.filter(
+            {VISIBLE_SECTION_META.filter(
               (s) => !s.disabled && !(s.key === "accounts" && !isAdminUser)
             ).map((s) => {
               const Icon = s.icon;
