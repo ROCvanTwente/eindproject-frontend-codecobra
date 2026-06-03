@@ -231,15 +231,6 @@ export function QRScannerScreen({ navigation, route }: Props) {
             {language === "nl" ? "Route" : "Route"}
           </Text>
         </TouchableOpacity>
-        <TouchableOpacity
-          style={styles.footerBtn}
-          onPress={() => navigation.push("Admin")}
-        >
-          <Ionicons name="settings-outline" size={28} color={PRIMARY} />
-          <Text style={styles.footerBtnText}>
-            {language === "nl" ? "Beheer" : "Admin"}
-          </Text>
-        </TouchableOpacity>
       </View>
     </SafeAreaView>
   );

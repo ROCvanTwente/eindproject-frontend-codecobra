@@ -7,6 +7,7 @@ export type SectionKey =
   | "textSpeech"
   | "accounts"
   | "qr"
+  | "floorPlan"
   | "scavenger"
   | "stats"
   | "media"
