@@ -69,10 +69,10 @@ export function FloorPlanScreen({ navigation, route }: Props) {
               return (
                 <Line
                   key={`line-${stop.id}`}
-                  x1={scaleX(stop.positionX!)}
-                  y1={scaleY(stop.positionY!)}
-                  x2={scaleX(next.positionX!)}
-                  y2={scaleY(next.positionY!)}
+                  x1={scaleX(stop.mapX!)}
+                  y1={scaleY(stop.mapY!)}
+                  x2={scaleX(next.mapX!)}
+                  y2={scaleY(next.mapY!)}
                   stroke={SECONDARY}
                   strokeWidth={2}
                   strokeDasharray="6,4"
@@ -83,8 +83,8 @@ export function FloorPlanScreen({ navigation, route }: Props) {
 
             {/* Stop markers */}
             {positionedStops.map((stop, i) => {
-              const cx = scaleX(stop.positionX!);
-              const cy = scaleY(stop.positionY!);
+              const cx = scaleX(stop.mapX!);
+              const cy = scaleY(stop.mapY!);
               const stopNumber = stops.findIndex((s) => s.id === stop.id) + 1;
               return (
                 <React.Fragment key={stop.id}>

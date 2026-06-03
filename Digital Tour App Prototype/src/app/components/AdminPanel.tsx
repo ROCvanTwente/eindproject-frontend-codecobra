@@ -17,7 +17,6 @@ import {
   Menu,
   X,
   Image as ImageIcon,
-  Map,
 } from "lucide-react";
 import { Stop, Language, SectionKey } from "../types";
 import { StopForm } from "./StopForm";
@@ -25,7 +24,6 @@ import {
   AdminSettings,
   addHistory,
 } from "../data/settings";
-import { AddTourStop, updateTourStop } from "../../services/api";
 
 import { SectionHome } from "./admin/SectionHome";
 import { SectionStops } from "./admin/SectionStops";
@@ -33,7 +31,6 @@ import { SectionTextSpeech } from "./admin/SectionTextSpeech";
 import { SectionBackground } from "./admin/SectionBackground";
 import { SectionAccounts } from "./admin/SectionAccounts";
 import { SectionQR } from "./admin/SectionQR";
-import { SectionFloorPlan } from "./admin/SectionFloorPlan";
 import { SectionStats } from "./admin/SectionStats";
 import { SectionMedia } from "./admin/SectionMedia";
 import { SectionHistory } from "./admin/SectionHistory";
@@ -64,7 +61,6 @@ export const SECTION_META: Array<{
   { key: "stops", icon: MapPin, nl: "Stops beheren", en: "Manage stops" },
   { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
-  { key: "floorPlan", icon: Map, nl: "Plattegrond", en: "Floor plan" },
   // theme removed
   { key: "background", icon: ImageIcon, nl: "Achtergrond", en: "Background" },
   { key: "textSpeech", icon: Volume2, nl: "Tekst & spraak", en: "Text & speech" },
@@ -76,11 +72,6 @@ export const SECTION_META: Array<{
   { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
   { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
 ];
-
-const VISIBLE_DASHBOARD_KEYS: SectionKey[] = ["home", "stops", "qr", "floorPlan", "accounts"];
-const VISIBLE_SECTION_META = SECTION_META.filter((s) =>
-  VISIBLE_DASHBOARD_KEYS.includes(s.key),
-);
 
 export function AdminPanel({
   stops,
@@ -99,86 +90,35 @@ export function AdminPanel({
 
   // ── Stop edit screen (kept from original flow) ─────────────────────────────
   if (editingStop || isCreating) {
-    const handleSave = async (stop: Stop) => {
+    const handleSave = (stop: Stop) => {
       const actor =
         settings.currentSession?.username ?? "admin";
-      
-      try {
-        // Convert stop object to FormData for API
-        const formData = new FormData();
-        const qrCodeText =
-          stop.qrCode?.code?.trim() ||
-          (((stop as any).qrCodeId != null)
-            ? String((stop as any).qrCodeId)
-            : "");
-
-        if (!qrCodeText) {
-          alert(
-            language === "nl"
-              ? "QR-code ontbreekt voor deze stop."
-              : "QR code is missing for this stop.",
-          );
-          return;
-        }
-
-        formData.append("qrCode", qrCodeText);
-        formData.append("locationNl", stop.locationNl ?? "");
-        formData.append("locationEn", stop.locationEn ?? "");
-        formData.append("titleNl", stop.titleNl ?? "");
-        formData.append("titleEn", stop.titleEn ?? "");
-        formData.append("descriptionNl", stop.descriptionNl ?? "");
-        formData.append("descriptionEn", stop.descriptionEn ?? "");
-
-        const estimatedDurationValue = Number(stop.estimatedDuration);
-        if (!Number.isFinite(estimatedDurationValue) || estimatedDurationValue <= 0) {
-          alert(
-            language === "nl"
-              ? "Geschatte duur ontbreekt of is ongeldig."
-              : "Estimated duration is missing or invalid.",
-          );
-          return;
-        }
-        formData.append("estimatedDuration", String(estimatedDurationValue));
-
-        if (stop.positionX != null) formData.append("positionX", String(stop.positionX));
-        if (stop.positionY != null) formData.append("positionY", String(stop.positionY));
-        if (stop.mediaUrl) formData.append("mediaUrl", stop.mediaUrl);
-
-        if (isCreating) {
-          console.log("Creating new stop via API:", stop);
-          const response = await AddTourStop(formData);
-          console.log("Create response:", response);
-          onUpdateSettings(
-            {},
-            {
-              action: "create-stop",
-              target: stop.titleNl || `#${stop.id}`,
-            },
-          );
-        } else {
-          console.log("Updating stop via API:", stop);
-          const response = await updateTourStop(stop.id, formData);
-          console.log("Update response:", response);
-          onUpdateSettings(
-            {},
-            {
-              action: "update-stop",
-              target: stop.titleNl || `#${stop.id}`,
-            },
-          );
-        }
-      } catch (error) {
-        console.error("Error saving stop:", error);
-        alert(
-          language === "nl"
-            ? "Fout bij opslaan van stop"
-            : "Error saving stop"
+      if (isCreating) {
+        const newId =
+          Math.max(...stops.map((s) => s.id), 0) + 1;
+        onUpdateStops([...stops, { ...stop, id: newId }]);
+        onUpdateSettings(
+          {},
+          {
+            action: "create-stop",
+            target: stop.title.nl || `#${newId}`,
+          },
         );
-      } finally {
-        void actor;
-        setEditingStop(null);
-        setIsCreating(false);
+      } else {
+        onUpdateStops(
+          stops.map((s) => (s.id === stop.id ? stop : s)),
+        );
+        onUpdateSettings(
+          {},
+          {
+            action: "update-stop",
+            target: stop.title.nl || `#${stop.id}`,
+          },
+        );
       }
+      void actor;
+      setEditingStop(null);
+      setIsCreating(false);
     };
     return (
       <StopForm
@@ -207,10 +147,11 @@ export function AdminPanel({
     onBack();
   };
 
-  const currentUserRole = settings.currentSession?.role;
+  const currentUserRole = settings.accounts.find(
+    (acc) => acc.username === settings.currentSession?.username,
+  )?.role;
 
-  const isAdminUser =
-    (currentUserRole ?? "").toLowerCase() === "admin";
+  const isAdminUser = currentUserRole === "Admin";
 
   const renderSection = () => {
     switch (section) {
@@ -220,7 +161,7 @@ export function AdminPanel({
             language={language}
             settings={settings}
             onNavigate={setSection}
-            sectionMeta={VISIBLE_SECTION_META}
+            sectionMeta={SECTION_META}
             isAdminUser={isAdminUser}
           />
         );
@@ -228,26 +169,21 @@ export function AdminPanel({
         return (
           <SectionStops
             language={language}
+            stops={stops}
+            onUpdateStops={onUpdateStops}
             onEdit={(s) => setEditingStop(s)}
             onCreate={() => {
               setEditingStop({
                 id: 0,
-                qrCode: { id: 0, code: "", name: "", createdAt: new Date().toISOString(), statistics: [] },
-                locationNl: "",
-                locationEn: "",
-                titleNl: "",
-                titleEn: "",
-                descriptionNl: "",
-                descriptionEn: "",
+                qrCode: "",
+                location: { nl: "", en: "" },
+                title: { nl: "", en: "" },
+                description: { nl: "", en: "" },
                 estimatedDuration: 3,
-                createdAt: new Date().toISOString(),
-                updatedAt: new Date().toISOString(),
-                order: 0,
               });
               setIsCreating(true);
             }}
             log={(a, t) => onUpdateSettings({}, { action: a, target: t })}
-            onStopsChange={onUpdateStops}
           />
         );
       case "background":
@@ -273,7 +209,7 @@ export function AdminPanel({
               language={language}
               settings={settings}
               onNavigate={setSection}
-              sectionMeta={VISIBLE_SECTION_META}
+              sectionMeta={SECTION_META}
               isAdminUser={isAdminUser}
             />
           );
@@ -292,13 +228,6 @@ export function AdminPanel({
             stops={stops}
             onUpdateStops={onUpdateStops}
             log={(a, t) => onUpdateSettings({}, { action: a, target: t })}
-          />
-        );
-      case "floorPlan":
-        return (
-          <SectionFloorPlan
-            language={language}
-            stops={stops}
           />
         );
       case "stats":
@@ -348,7 +277,7 @@ export function AdminPanel({
             language={language}
             settings={settings}
             onNavigate={setSection}
-            sectionMeta={VISIBLE_SECTION_META}
+            sectionMeta={SECTION_META}
             isAdminUser={isAdminUser}
           />
         );
@@ -427,7 +356,7 @@ export function AdminPanel({
           </button>
         </div>
         <div className="overflow-y-auto h-[calc(100vh-60px)] p-2">
-          {VISIBLE_SECTION_META.filter(
+          {SECTION_META.filter(
             (s) => !s.disabled && !(s.key === "accounts" && !isAdminUser)
           ).map((s) => {
             const Icon = s.icon;
@@ -457,7 +386,7 @@ export function AdminPanel({
         {/* Desktop sidebar */}
         <aside className="hidden md:block md:w-64 md:flex-shrink-0">
           <nav className="bg-white rounded-xl border-2 border-gray-200 p-2 flex flex-col gap-1 md:sticky md:top-20">
-            {VISIBLE_SECTION_META.filter(
+            {SECTION_META.filter(
               (s) => !s.disabled && !(s.key === "accounts" && !isAdminUser)
             ).map((s) => {
               const Icon = s.icon;

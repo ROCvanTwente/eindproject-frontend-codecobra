@@ -1,22 +1,9 @@
 import { useRef, useState } from "react";
 import { Stop, Language } from "../types";
 import plattegrondImg from "../../imports/PlattegrondGieterijBeganegrondV2.0.png";
-import {
-  normalizeMediaUrlForStorage,
-  resolveMediaUrl,
-  uploadMedia,
-} from "../../services/api";
 
 const MAP_W = 1528;
 const MAP_H = 704;
-
-type MediaKind = "image" | "video";
-
-function detectKindFromUrl(url: string): MediaKind {
-  const lower = url.toLowerCase();
-  if (/\.(mp4|webm|mov|m4v)(\?|$)/.test(lower)) return "video";
-  return "image";
-}
 
 interface StopFormProps {
   stop: Stop;
@@ -26,27 +13,6 @@ interface StopFormProps {
   isCreating: boolean;
 }
 
-function normalizeQrCode(stop: Stop) {
-  const current = (stop as any).qrCode;
-  if (current?.code) {
-    return current;
-  }
-
-  const qrCodeId = (stop as any).qrCodeId;
-  const fallbackCode =
-    qrCodeId !== undefined && qrCodeId !== null
-      ? String(qrCodeId)
-      : "";
-
-  return {
-    id: Number(qrCodeId ?? 0),
-    code: fallbackCode,
-    name: fallbackCode,
-    createdAt: new Date().toISOString(),
-    statistics: [],
-  };
-}
-
 export function StopForm({
   stop,
   language,
@@ -54,21 +20,7 @@ export function StopForm({
   onCancel,
   isCreating,
 }: StopFormProps) {
-  const normalizedStop: Stop = {
-    ...stop,
-    qrCode: normalizeQrCode(stop),
-    locationNl: stop.locationNl ?? "",
-    locationEn: stop.locationEn ?? "",
-    titleNl: stop.titleNl ?? "",
-    titleEn: stop.titleEn ?? "",
-    descriptionNl: stop.descriptionNl ?? "",
-    descriptionEn: stop.descriptionEn ?? "",
-    estimatedDuration: stop.estimatedDuration ?? 1,
-    mediaUrl: normalizeMediaUrlForStorage(stop.mediaUrl) ?? null,
-  };
-
-  const [formData, setFormData] = useState<Stop>(normalizedStop);
-  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+  const [formData, setFormData] = useState<Stop>(stop);
   const svgRef = useRef<SVGSVGElement | null>(null);
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
@@ -77,25 +29,26 @@ export function StopForm({
     const rect = svg.getBoundingClientRect();
     const x = Math.round(((e.clientX - rect.left) / rect.width) * MAP_W);
     const y = Math.round(((e.clientY - rect.top) / rect.height) * MAP_H);
-    setFormData({ ...formData, positionX: x, positionY: y });
+    setFormData({ ...formData, mapX: x, mapY: y });
   };
 
   const clearMapPosition = () => {
-    setFormData({ ...formData, positionX: undefined, positionY: undefined });
+    setFormData({ ...formData, mapX: undefined, mapY: undefined });
   };
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     // Auto-fallback: if English is empty, copy the Dutch value so the user
     // isn't forced to fill both sides.
-    const fillText = (nl: string, en: string) =>
-      en.trim() ? en : nl;
-
+    const fill = (pair: { nl: string; en: string }) => ({
+      nl: pair.nl,
+      en: pair.en.trim() ? pair.en : pair.nl,
+    });
     onSave({
       ...formData,
-      locationEn: fillText(formData.locationNl, formData.locationEn),
-      titleEn: fillText(formData.titleNl, formData.titleEn),
-      descriptionEn: fillText(formData.descriptionNl, formData.descriptionEn),
+      location: fill(formData.location),
+      title: fill(formData.title),
+      description: fill(formData.description),
     });
   };
 
@@ -103,50 +56,31 @@ export function StopForm({
     setFormData({ ...formData, [field]: value });
   };
 
-  const updateMedia = (url: string) => {
-    setFormData((prev) => ({
-      ...prev,
-      mediaUrl: normalizeMediaUrlForStorage(url),
-    }));
+  const updateTranslation = (
+    field: "location" | "title" | "description",
+    lang: Language,
+    value: string,
+  ) => {
+    setFormData({
+      ...formData,
+      [field]: { ...formData[field], [lang]: value },
+    });
+  };
+
+  const updateMedia = (
+    field: keyof NonNullable<Stop["media"]>,
+    value: any,
+  ) => {
+    setFormData({
+      ...formData,
+      media: formData.media
+        ? { ...formData.media, [field]: value }
+        : { type: "image", url: "", [field]: value },
+    });
   };
 
   const removeMedia = () => {
-    setFormData((prev) => ({ ...prev, mediaUrl: null }));
-  };
-
-  const handleMediaFileUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    const file = files[0];
-
-    const isImage = file.type.startsWith("image/");
-    const isVideo = file.type.startsWith("video/");
-
-    if (!isImage && !isVideo) {
-      alert(
-        language === "nl"
-          ? "Alleen foto's en video's zijn toegestaan."
-          : "Only photos and videos are allowed.",
-      );
-      return;
-    }
-
-    try {
-      setIsUploadingMedia(true);
-      const uploaded = await uploadMedia(file, formData.qrCode?.id);
-      if (!uploaded?.filePath) {
-        throw new Error("Missing filePath in upload response");
-      }
-      updateMedia(uploaded.filePath);
-    } catch (error) {
-      console.error("Media upload failed:", error);
-      alert(
-        language === "nl"
-          ? "Uploaden van media is mislukt."
-          : "Uploading media failed.",
-      );
-    } finally {
-      setIsUploadingMedia(false);
-    }
+    setFormData({ ...formData, media: undefined });
   };
 
   return (
@@ -179,9 +113,9 @@ export function StopForm({
             </label>
             <input
               type="text"
-              value={formData.qrCode?.code || ""}
+              value={formData.qrCode}
               onChange={(e) =>
-                updateField("qrCode", { ...formData.qrCode, code: e.target.value })
+                updateField("qrCode", e.target.value)
               }
               className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
               placeholder="GIETERIJ-001"
@@ -199,9 +133,13 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.locationNl ?? ""}
+                value={formData.location.nl}
                 onChange={(e) =>
-                  updateField("locationNl", e.target.value)
+                  updateTranslation(
+                    "location",
+                    "nl",
+                    e.target.value,
+                  )
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
                 placeholder="Hoofdingang - Hal"
@@ -216,9 +154,13 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.locationEn ?? ""}
+                value={formData.location.en}
                 onChange={(e) =>
-                  updateField("locationEn", e.target.value)
+                  updateTranslation(
+                    "location",
+                    "en",
+                    e.target.value,
+                  )
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
                 placeholder={
@@ -240,9 +182,13 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.titleNl ?? ""}
+                value={formData.title.nl}
                 onChange={(e) =>
-                  updateField("titleNl", e.target.value)
+                  updateTranslation(
+                    "title",
+                    "nl",
+                    e.target.value,
+                  )
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
                 placeholder="Welkom bij de Gieterij"
@@ -257,9 +203,13 @@ export function StopForm({
               </label>
               <input
                 type="text"
-                value={formData.titleEn ?? ""}
+                value={formData.title.en}
                 onChange={(e) =>
-                  updateField("titleEn", e.target.value)
+                  updateTranslation(
+                    "title",
+                    "en",
+                    e.target.value,
+                  )
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
                 placeholder={
@@ -280,9 +230,13 @@ export function StopForm({
                   : "Description (Dutch)"}
               </label>
               <textarea
-                value={formData.descriptionNl ?? ""}
+                value={formData.description.nl}
                 onChange={(e) =>
-                  updateField("descriptionNl", e.target.value)
+                  updateTranslation(
+                    "description",
+                    "nl",
+                    e.target.value,
+                  )
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none min-h-[150px]"
                 placeholder="Beschrijving..."
@@ -296,9 +250,13 @@ export function StopForm({
                   : "Description (English) — optional"}
               </label>
               <textarea
-                value={formData.descriptionEn ?? ""}
+                value={formData.description.en}
                 onChange={(e) =>
-                  updateField("descriptionEn", e.target.value)
+                  updateTranslation(
+                    "description",
+                    "en",
+                    e.target.value,
+                  )
                 }
                 className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none min-h-[150px]"
                 placeholder={
@@ -318,7 +276,7 @@ export function StopForm({
                   ? "Positie op plattegrond"
                   : "Position on floor plan"}
               </label>
-              {typeof formData.positionX === "number" && (
+              {typeof formData.mapX === "number" && (
                 <button
                   type="button"
                   onClick={clearMapPosition}
@@ -352,19 +310,19 @@ export function StopForm({
                   height={MAP_H}
                   preserveAspectRatio="xMidYMid meet"
                 />
-                {typeof formData.positionX === "number" &&
-                  typeof formData.positionY === "number" && (
+                {typeof formData.mapX === "number" &&
+                  typeof formData.mapY === "number" && (
                     <g style={{ pointerEvents: "none" }}>
                       <circle
-                        cx={formData.positionX}
-                        cy={formData.positionY}
+                        cx={formData.mapX}
+                        cy={formData.mapY}
                         r="46"
                         fill="#E30613"
                         fillOpacity="0.3"
                       />
                       <circle
-                        cx={formData.positionX}
-                        cy={formData.positionY}
+                        cx={formData.mapX}
+                        cy={formData.mapY}
                         r="24"
                         fill="#E30613"
                         stroke="white"
@@ -374,9 +332,9 @@ export function StopForm({
                   )}
               </svg>
             </div>
-            {typeof formData.positionX === "number" ? (
+            {typeof formData.mapX === "number" ? (
               <p className="text-sm text-gray-500 mt-2">
-                x: {formData.positionX}, y: {formData.positionY}
+                x: {formData.mapX}, y: {formData.mapY}
               </p>
             ) : (
               <p className="text-sm text-gray-500 mt-2">
@@ -415,7 +373,7 @@ export function StopForm({
               <h3 className="text-xl">
                 {language === "nl" ? "Media" : "Media"}
               </h3>
-              {formData.mediaUrl && (
+              {formData.media && (
                 <button
                   type="button"
                   onClick={removeMedia}
@@ -428,34 +386,33 @@ export function StopForm({
               )}
             </div>
 
-            {formData.mediaUrl ? (
+            {formData.media ? (
               <div className="space-y-4">
-                <div className="rounded-lg border border-gray-200 overflow-hidden bg-black">
-                  {detectKindFromUrl(formData.mediaUrl) === "video" ? (
-                    <video
-                      src={resolveMediaUrl(formData.mediaUrl)}
-                      controls
-                      className="w-full max-h-[320px]"
-                    />
-                  ) : (
-                    <img
-                      src={resolveMediaUrl(formData.mediaUrl)}
-                      alt="Stop media"
-                      className="w-full max-h-[320px] object-contain bg-black"
-                    />
-                  )}
-                </div>
-
                 <div>
                   <label className="block text-lg mb-2">
-                    {language === "nl" ? "Upload bestand" : "Upload file"}
+                    {language === "nl" ? "Type" : "Type"}
                   </label>
-                  <input
-                    type="file"
-                    accept="image/*,video/*"
-                    onChange={(e) => handleMediaFileUpload(e.target.files)}
-                    className="w-full border-2 border-gray-300 rounded-lg p-3 text-base focus:border-[#0066B3] focus:outline-none"
-                  />
+                  <select
+                    value={formData.media.type}
+                    onChange={(e) =>
+                      updateMedia(
+                        "type",
+                        e.target.value as
+                          | "image"
+                          | "video"
+                          | "audio",
+                      )
+                    }
+                    className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                  >
+                    <option value="image">
+                      {language === "nl"
+                        ? "Afbeelding"
+                        : "Image"}
+                    </option>
+                    <option value="video">Video</option>
+                    <option value="audio">Audio</option>
+                  </select>
                 </div>
 
                 <div>
@@ -463,45 +420,71 @@ export function StopForm({
                     URL
                   </label>
                   <input
-                    type="text"
-                    value={formData.mediaUrl ?? ""}
-                    onChange={(e) => updateMedia(e.target.value)}
+                    type="url"
+                    value={formData.media.url}
+                    onChange={(e) =>
+                      updateMedia("url", e.target.value)
+                    }
                     className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
-                    placeholder="/uploads/... of https://..."
+                    placeholder="https://..."
                     required
                   />
                 </div>
 
-                {isUploadingMedia && (
-                  <p className="text-sm text-[#0066B3]">
-                    {language === "nl" ? "Uploaden..." : "Uploading..."}
-                  </p>
+                {formData.media.type === "video" && (
+                  <>
+                    <div>
+                      <label className="block text-lg mb-2">
+                        {language === "nl"
+                          ? "Duur (seconden)"
+                          : "Duration (seconds)"}
+                      </label>
+                      <input
+                        type="number"
+                        value={formData.media.duration || ""}
+                        onChange={(e) =>
+                          updateMedia(
+                            "duration",
+                            e.target.value
+                              ? parseInt(e.target.value)
+                              : undefined,
+                          )
+                        }
+                        className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                        min="1"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-lg mb-2">
+                        Thumbnail URL
+                      </label>
+                      <input
+                        type="url"
+                        value={formData.media.thumbnail || ""}
+                        onChange={(e) =>
+                          updateMedia(
+                            "thumbnail",
+                            e.target.value,
+                          )
+                        }
+                        className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                        placeholder="https://..."
+                      />
+                    </div>
+                  </>
                 )}
               </div>
             ) : (
-              <div className="space-y-3">
-                <button
-                  type="button"
-                  onClick={() => updateMedia("")}
-                  className="w-full border-2 border-dashed border-gray-300 rounded-lg p-6 text-lg text-gray-500 hover:border-[#0066B3] hover:text-[#0066B3] transition-colors"
-                >
-                  +{" "}
-                  {language === "nl"
-                    ? "Media toevoegen"
-                    : "Add media"}
-                </button>
-                <input
-                  type="file"
-                  accept="image/*,video/*"
-                  onChange={(e) => handleMediaFileUpload(e.target.files)}
-                  className="w-full border-2 border-gray-300 rounded-lg p-3 text-base focus:border-[#0066B3] focus:outline-none"
-                />
-                {isUploadingMedia && (
-                  <p className="text-sm text-[#0066B3]">
-                    {language === "nl" ? "Uploaden..." : "Uploading..."}
-                  </p>
-                )}
-              </div>
+              <button
+                type="button"
+                onClick={() => updateMedia("type", "image")}
+                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 text-lg text-gray-500 hover:border-[#0066B3] hover:text-[#0066B3] transition-colors"
+              >
+                +{" "}
+                {language === "nl"
+                  ? "Media toevoegen"
+                  : "Add media"}
+              </button>
             )}
           </div>
 
