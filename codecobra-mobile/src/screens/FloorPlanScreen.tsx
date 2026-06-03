@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -7,137 +7,144 @@ import {
   ScrollView,
   SafeAreaView,
   Dimensions,
+  ActivityIndicator,
+  useWindowDimensions,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
-// Fixed Import Line:
-import Svg, { Circle, Text as SvgText, Rect, Line, Image as SvgImage } from "react-native-svg";
+import Svg, { Circle, Text as SvgText, Image as SvgImage } from "react-native-svg";
+import Orientation from 'react-native-orientation-locker';
+
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language } from "../types";
 import FloorPlanImage from "../imports/PlattegrondGieterijBeganegrondV2.0.png";
+import { getAllStops } from "../data/api";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
-const { width: SCREEN_W } = Dimensions.get("window");
-const MAP_W = SCREEN_W - 32;
-const MAP_H = MAP_W * (704 / 1531);
-
-// Original map coordinate space: 1531 × 704
-const scaleX = (x: number) => (x / 1531) * MAP_W;
-const scaleY = (y: number) => (y / 704) * MAP_H;
 
 type Props = NativeStackScreenProps<RootStackParamList, "FloorPlan">;
 
 export function FloorPlanScreen({ navigation, route }: Props) {
-  const { stops } = useAppContext();
+  const { stops: contextStops } = useAppContext();
   const language: Language = route.params.language;
 
-  const positionedStops = stops.filter((s) => s.mapX !== undefined && s.mapY !== undefined);
+  // useWindowDimensions automatically updates when the phone rotates
+  const { width, height } = useWindowDimensions();
+
+  const [stopsData, setStopsData] = useState(contextStops ?? []);
+  const [loading, setLoading] = useState<boolean>(false);
+
+  // 1. Handle Orientation Locking
+  useEffect(() => {
+    Orientation.lockToLandscape(); // Force horizontal
+
+    return () => {
+      Orientation.lockToPortrait(); // Back to vertical when leaving
+    };
+  }, []);
+
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setLoading(true);
+      try {
+        const data = await getAllStops();
+        if (mounted && Array.isArray(data)) setStopsData(data);
+      } catch (error) {
+        console.error("Error fetching stops:", error);
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => { mounted = false; };
+  }, []);
+
+  // 2. Dynamic Map Scaling
+  // In landscape, 'width' is the long side.
+  const MAP_W = width - 40; 
+  const MAP_H = MAP_W * (704 / 1531);
+
+  const scaleX = (x: number) => (x / 1531) * MAP_W;
+  const scaleY = (y: number) => (y / 704) * MAP_H;
+
+  const positionedStops = stopsData.filter((s) => s.positionX != null && s.positionY != null);
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header */}
+      {/* Reduced header height for landscape */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={26} color="#fff" />
+          <Ionicons name="arrow-back" size={20} color="#fff" />
         </TouchableOpacity>
-        <View style={styles.headerText}>
-          <Text style={styles.headerTitle}>
-            {language === "nl" ? "Plattegrond" : "Floor plan"}
-          </Text>
-          <Text style={styles.headerSub}>De Gieterij</Text>
-        </View>
+        <Text style={styles.headerTitle}>
+          {language === "nl" ? "Plattegrond De Gieterij" : "Floor plan De Gieterij"}
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* SVG map */}
         <View style={styles.mapContainer}>
-          <Svg width={MAP_W} height={MAP_H}>
-            {/* Background Map Image */}
-            <SvgImage
-              href={FloorPlanImage}
-              width={MAP_W}
-              height={MAP_H}
-              preserveAspectRatio="xMidYMid slice"
-            />
+          {loading ? (
+            <View style={{ width: MAP_W, height: MAP_H, alignItems: "center", justifyContent: "center" }}>
+              <ActivityIndicator size="large" color={PRIMARY} />
+            </View>
+          ) : (
+            <Svg width={MAP_W} height={MAP_H}>
+              <SvgImage
+                href={FloorPlanImage}
+                width={MAP_W}
+                height={MAP_H}
+                preserveAspectRatio="xMidYMid slice"
+              />
 
-            {/* Connecting lines between ordered stops */}
-            {positionedStops.map((stop, i) => {
-              const next = positionedStops[i + 1];
-              if (!next) return null;
-              return (
-                <Line
-                  key={`line-${stop.id}`}
-                  x1={scaleX(stop.positionX!)}
-                  y1={scaleY(stop.positionY!)}
-                  x2={scaleX(next.positionX!)}
-                  y2={scaleY(next.positionY!)}
-                  stroke={SECONDARY}
-                  strokeWidth={2}
-                  strokeDasharray="6,4"
-                  opacity={0.5}
-                />
-              );
-            })}
+              {/* BLUE DOTTED LINE SECTION REMOVED */}
 
-            {/* Stop markers */}
-            {positionedStops.map((stop, i) => {
-              const cx = scaleX(stop.positionX!);
-              const cy = scaleY(stop.positionY!);
-              const stopNumber = stops.findIndex((s) => s.id === stop.id) + 1;
-              return (
-                <React.Fragment key={stop.id}>
-                  <Circle cx={cx} cy={cy} r={14} fill={PRIMARY} />
-                  <SvgText
-                    x={cx}
-                    y={cy + 5}
-                    textAnchor="middle"
-                    fill="#fff"
-                    fontSize={12}
-                    fontWeight="bold"
-                  >
-                    {stopNumber}
-                  </SvgText>
-                </React.Fragment>
-              );
-            })}
-          </Svg>
+              {positionedStops.map((stop) => {
+                const cx = scaleX(stop.positionX!);
+                const cy = scaleY(stop.positionY!);
+                const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
+                return (
+                  <React.Fragment key={stop.id}>
+                    <Circle cx={cx} cy={cy} r={12} fill={PRIMARY} />
+                    <SvgText
+                      x={cx}
+                      y={cy + 4}
+                      textAnchor="middle"
+                      fill="#fff"
+                      fontSize={10}
+                      fontWeight="bold"
+                    >
+                      {stopNumber}
+                    </SvgText>
+                  </React.Fragment>
+                );
+              })}
+            </Svg>
+          )}
         </View>
 
-        {positionedStops.length === 0 && (
-          <View style={styles.emptyBox}>
-            <Ionicons name="map-outline" size={48} color="#9ca3af" />
-            <Text style={styles.emptyText}>
-              {language === "nl"
-                ? "Geen stops met kaartpositie beschikbaar."
-                : "No stops with map positions available."}
-            </Text>
-          </View>
-        )}
-
         {/* Legend */}
-        <Text style={styles.legendTitle}>
-          {language === "nl" ? "Stops op de kaart" : "Stops on the map"}
-        </Text>
-        {positionedStops.map((stop) => {
-          const stopNumber = stops.findIndex((s) => s.id === stop.id) + 1;
-          return (
-            <TouchableOpacity
-              key={stop.id}
-              style={styles.legendItem}
-              onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
-            >
-              <View style={styles.legendBadge}>
-                <Text style={styles.legendBadgeText}>{stopNumber}</Text>
-              </View>
-              <Text style={styles.legendLabel} numberOfLines={1}>
-                {stop.title[language]}
-              </Text>
-              <Ionicons name="chevron-forward" size={18} color={SECONDARY} />
-            </TouchableOpacity>
-          );
-        })}
+        <View style={styles.legendGrid}>
+           {positionedStops.map((stop) => {
+             const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
+             return (
+               <TouchableOpacity
+                 key={stop.id}
+                 style={styles.legendItem}
+                 onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
+               >
+                 <View style={styles.legendBadge}>
+                   <Text style={styles.legendBadgeText}>{stopNumber}</Text>
+                 </View>
+                 <Text style={styles.legendLabel} numberOfLines={1}>
+                   {language === "nl" ? stop.titleNl : stop.titleEn}
+                 </Text>
+               </TouchableOpacity>
+             );
+           })}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -149,64 +156,54 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY,
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 8,
-    paddingBottom: 16,
+    paddingVertical: 8,
     paddingHorizontal: 16,
     gap: 12,
   },
   backBtn: {
     backgroundColor: "rgba(255,255,255,0.2)",
-    borderRadius: 12,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.3)",
+    borderRadius: 8,
+    padding: 6,
   },
-  headerText: { flex: 1 },
-  headerTitle: { fontSize: 26, color: "#fff", fontWeight: "700" },
-  headerSub: { fontSize: 15, color: "rgba(255,255,255,0.8)", marginTop: 2 },
-  content: { padding: 16, paddingBottom: 40 },
+  headerTitle: { fontSize: 18, color: "#fff", fontWeight: "700" },
+  content: { padding: 10 },
   mapContainer: {
     borderRadius: 12,
     overflow: "hidden",
-    marginBottom: 20,
-    borderWidth: 2,
-    borderColor: "#d1d5db",
+    alignSelf: 'center',
+    backgroundColor: '#fff',
+    elevation: 3,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    marginBottom: 15,
   },
-  emptyBox: {
-    alignItems: "center",
-    padding: 32,
-    gap: 12,
-  },
-  emptyText: {
-    fontSize: 16,
-    color: "#9ca3af",
-    textAlign: "center",
-  },
-  legendTitle: {
-    fontSize: 18,
-    fontWeight: "700",
-    color: "#111",
-    marginBottom: 12,
+  legendGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    justifyContent: 'center'
   },
   legendItem: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "#fff",
-    borderRadius: 14,
-    padding: 14,
-    marginBottom: 8,
+    borderRadius: 10,
+    padding: 8,
+    width: '31%', // Show 3 items per row in landscape
     borderWidth: 1,
     borderColor: "#e5e7eb",
-    gap: 12,
+    gap: 8,
   },
   legendBadge: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
+    width: 24,
+    height: 24,
+    borderRadius: 12,
     backgroundColor: PRIMARY,
     alignItems: "center",
     justifyContent: "center",
   },
-  legendBadgeText: { color: "#fff", fontWeight: "700", fontSize: 16 },
-  legendLabel: { flex: 1, fontSize: 16, color: "#111" },
+  legendBadgeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
+  legendLabel: { flex: 1, fontSize: 12, color: "#111" },
 });

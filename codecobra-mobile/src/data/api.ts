@@ -1,7 +1,7 @@
-const API_URL = "http://digitalworkplacetestapi.runasp.net/api/qrcode";
+const API_URL = "http://10.0.2.2:5018/api";
 
 export async function recordScan(qrCode: string) {
-  const response = await fetch(`${API_URL}/scan`, {
+  const response = await fetch(`${API_URL}/qrcode/scan`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ qrCode }),
@@ -12,4 +12,14 @@ export async function recordScan(qrCode: string) {
   }
 
   return response.json();
+}
+
+export async function getAllStops() {
+  console.log("Fetching stops from API...");
+  console.log(`API URL: ${API_URL}/stops/all`);
+    const response = await fetch(`${API_URL}/stops/all`);
+    if (!response.ok) {
+        throw new Error("Failed to fetch stops");
+    }
+    return response.json();
 }
