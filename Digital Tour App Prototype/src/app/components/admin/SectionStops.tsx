@@ -153,9 +153,18 @@ export function SectionStops({
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
+                  {(() => {
+                    const qrCodeText =
+                      stop.qrCode?.code ??
+                      ((stop as any).qrCodeId != null
+                        ? String((stop as any).qrCodeId)
+                        : "");
+                    return (
                   <span className="bg-[#E30613] text-white px-3 py-1 rounded-full text-sm">
-                    {stop.qrCode.code}
+                      {qrCodeText || "—"}
                   </span>
+                    );
+                  })()}
                   <span className="text-gray-500 text-sm">
                     #{index + 1}
                   </span>
