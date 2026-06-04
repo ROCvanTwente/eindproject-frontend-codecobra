@@ -184,3 +184,21 @@ export async function updateStopMedia(id, mediaUrl) {
   return await response.json();
 }
 
+export async function getQRCodeStatistics(qrCodeId) {
+  const response = await fetch(`${API_BASE_URL}/qrcode/statistics/${qrCodeId}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+
+  if (response.status === 404) {
+    return null;
+  }
+
+  if (!response.ok) {
+    throw new Error("Failed to fetch QR code statistics");
+  }
+
+  return await response.json();
+}
+
