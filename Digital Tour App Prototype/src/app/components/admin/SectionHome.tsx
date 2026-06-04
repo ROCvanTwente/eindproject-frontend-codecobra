@@ -1,4 +1,4 @@
-import { BarChart3, Battery } from "lucide-react";
+import { Battery } from "lucide-react";
 import { Language, SectionKey } from "../../types";
 import { AdminSettings } from "../../data/settings";
 
@@ -27,26 +27,6 @@ export function SectionHome({
     (b) => b.batteryPct <= settings.batteryThresholdPct,
   );
 
-  const dashboardItems = (() => {
-    const base = sectionMeta
-      .filter((item) => item.key !== "home")
-      .filter((item) => !(item.key === "accounts" && !isAdminUser));
-
-    if (base.some((item) => item.key === "stats")) {
-      return base;
-    }
-
-    return [
-      ...base,
-      {
-        key: "stats" as SectionKey,
-        icon: BarChart3,
-        nl: "Statistieken",
-        en: "Statistics",
-      },
-    ];
-  })();
-
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">
@@ -61,7 +41,10 @@ export function SectionHome({
       </p>
 
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-        {dashboardItems.map((item) => {
+        {sectionMeta
+          .filter((item) => item.key !== "home")
+          .filter((item) => !(item.key === "accounts" && !isAdminUser))
+          .map((item) => {
             return (
               <div
                 key={item.key}
