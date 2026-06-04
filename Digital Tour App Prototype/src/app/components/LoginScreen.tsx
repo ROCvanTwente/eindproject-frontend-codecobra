@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminSettings, addHistory } from "../data/settings";
 import { Language, UserSession } from "../types";
-import { loginUser } from "../../services/authApi";
+import { getCurrentUserInfo, loginUser } from "../../services/authApi";
 
 interface LoginScreenProps {
   settings: AdminSettings;
@@ -35,10 +35,12 @@ export function LoginScreen({
                     return;
                 }
 
+                const currentUser = await getCurrentUserInfo();
+
         // Build a UserSession to pass back to App. Prefer server-provided info if available.
         const session = {
           username: data?.username ?? username,
-                    role: data?.role ?? "Editor",
+                    role: currentUser?.isAdmin ? "Admin" : data?.role ?? "Editor",
         };
 
         // Notify parent app that login succeeded so it can switch to the admin view.

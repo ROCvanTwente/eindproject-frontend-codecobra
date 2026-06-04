@@ -5,35 +5,14 @@ import { AdminPanel } from "./components/AdminPanel";
 import { LoginScreen } from "./components/LoginScreen";
 import { RegisterScreen } from "./components/RegisterScreen";
 import { useLocation, useNavigate } from "react-router-dom";
-
-const STOPS_KEY = "gieterij-stops-v2";
-const loadStops = (): Stop[] => {
-  if (typeof window === "undefined") return [];
-  try {
-    window.localStorage.removeItem("gieterij-stops");
-  } catch {}
-  try {
-    const raw = window.localStorage.getItem(STOPS_KEY);
-    if (!raw) return [];
-    const parsed: Stop[] = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-};
-const saveStops = (stops: Stop[]) => {
-  try {
-    window.localStorage.setItem(STOPS_KEY, JSON.stringify(stops));
-  } catch {}
-};
+import { getAllTourStops, mapTourStopResponse } from "../services/api";
 
 type View = "login" | "register" | "admin";
 
 export default function App() {
   const [language, setLanguage] = useState<Language>("nl");
   const [view, setView] = useState<View>("login");
-  const [stops, setStops] = useState<Stop[]>(() => loadStops());
+  const [stops, setStops] = useState<Stop[]>([]);
   const [settings, setSettings] = useState<AdminSettings>(() =>
     loadSettings(),
   );
@@ -56,8 +35,24 @@ export default function App() {
   };
 
   useEffect(() => {
-    saveStops(stops);
-  }, [stops]);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await getAllTourStops();
+        if (cancelled) return;
+        setStops(Array.isArray(response) ? response.map(mapTourStopResponse) : []);
+      } catch {
+        if (!cancelled) {
+          setStops([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     document.documentElement.style.setProperty(

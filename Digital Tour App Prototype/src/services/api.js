@@ -1,6 +1,175 @@
 import { getAuthHeaders } from "./authApi";
 
-const API_BASE_URL = "https://digitalworkplacetestapi.runasp.net/api";
+const API_BASE_URL =
+  import.meta.env?.VITE_API_BASE_URL ?? "http://localhost:5000/api";
+
+function toApiRoot(url) {
+  return url.replace(/\/$/, "").replace(/\/api$/, "");
+}
+
+function getValue(source, keys, fallback = undefined) {
+  for (const key of keys) {
+    const value = source?.[key];
+    if (value !== undefined && value !== null) {
+      return value;
+    }
+  }
+  return fallback;
+}
+
+function appendFormValue(formData, key, value) {
+  if (value === undefined || value === null) {
+    return;
+  }
+  formData.append(key, String(value));
+}
+
+function detectMediaKind(mediaUrl) {
+  const value = String(mediaUrl ?? "").toLowerCase();
+
+  if (
+    value.startsWith("data:audio/") ||
+    /\.(mp3|wav|ogg|m4a)(\?|$)/i.test(value)
+  ) {
+    return "audio";
+  }
+
+  if (
+    value.startsWith("data:video/") ||
+    /\.(mp4|webm|mov|m4v)(\?|$)/i.test(value)
+  ) {
+    return "video";
+  }
+
+  return "image";
+}
+
+function getQrCodeValue(stop) {
+  const nestedQrCode = getValue(stop, ["qrCode", "QRCode", "qrcode"]);
+
+  if (typeof nestedQrCode === "string") {
+    return nestedQrCode;
+  }
+
+  if (nestedQrCode && typeof nestedQrCode === "object") {
+    return String(getValue(nestedQrCode, ["code", "Code"], ""));
+  }
+
+  return String(getValue(stop, ["qrCodeId", "QRCodeId"], "") ?? "");
+}
+
+export function mapTourStopResponse(stop) {
+  if (!stop) {
+    return stop;
+  }
+
+  const mediaUrl = getValue(stop, ["mediaUrl", "MediaUrl"], "");
+  const mapped = {
+    id: Number(getValue(stop, ["id", "Id"], 0)),
+    qrCode: getQrCodeValue(stop),
+    location: {
+      nl: String(getValue(stop, ["locationNl", "LocationNl"], "") ?? ""),
+      en: String(getValue(stop, ["locationEn", "LocationEn"], "") ?? ""),
+    },
+    title: {
+      nl: String(getValue(stop, ["titleNl", "TitleNl"], "") ?? ""),
+      en: String(getValue(stop, ["titleEn", "TitleEn"], "") ?? ""),
+    },
+    description: {
+      nl: String(getValue(stop, ["descriptionNl", "DescriptionNl"], "") ?? ""),
+      en: String(getValue(stop, ["descriptionEn", "DescriptionEn"], "") ?? ""),
+    },
+    estimatedDuration: Number(
+      getValue(stop, ["estimatedDuration", "EstimatedDuration"], 3) ?? 3,
+    ),
+    mapX: getValue(stop, ["positionX", "PositionX"], undefined),
+    mapY: getValue(stop, ["positionY", "PositionY"], undefined),
+  };
+
+  if (mediaUrl) {
+    mapped.media = {
+      type: detectMediaKind(mediaUrl),
+      url: mediaUrl,
+    };
+  }
+
+  return mapped;
+}
+
+export function buildTourStopFormData(stop, options = {}) {
+  const { qrFieldName, includeEmptyMediaUrl = false } = options;
+  const formData = new FormData();
+
+  if (qrFieldName) {
+    appendFormValue(formData, qrFieldName, stop.qrCode);
+  }
+
+  appendFormValue(formData, "qrCode", stop.qrCode);
+
+  appendFormValue(formData, "LocationNl", stop.location?.nl ?? "");
+  appendFormValue(formData, "LocationEn", stop.location?.en ?? "");
+  appendFormValue(formData, "TitleNl", stop.title?.nl ?? "");
+  appendFormValue(formData, "TitleEn", stop.title?.en ?? "");
+  appendFormValue(formData, "DescriptionNl", stop.description?.nl ?? "");
+  appendFormValue(formData, "DescriptionEn", stop.description?.en ?? "");
+  appendFormValue(formData, "PositionX", stop.mapX);
+  appendFormValue(formData, "PositionY", stop.mapY);
+  appendFormValue(formData, "EstimatedDuration", stop.estimatedDuration);
+
+  const mediaUrl = stop.media?.url;
+  if (mediaUrl || includeEmptyMediaUrl) {
+    appendFormValue(formData, "MediaUrl", mediaUrl ?? "");
+  }
+
+  return formData;
+}
+
+export async function createTourStop(stop) {
+  const response = await AddTourStop(
+    buildTourStopFormData(stop, { qrFieldName: "qrCode" }),
+  );
+
+  return {
+    ...mapTourStopResponse(response),
+    qrCode: stop.qrCode,
+  };
+}
+
+export async function saveTourStop(id, stop) {
+  const response = await updateTourStop(
+    id,
+    buildTourStopFormData(stop, {
+      includeEmptyMediaUrl: true,
+    }),
+  );
+
+  return {
+    ...mapTourStopResponse(response),
+    qrCode: stop.qrCode,
+  };
+}
+
+export function normalizeMediaUrlForStorage(mediaUrl) {
+  if (!mediaUrl) return mediaUrl;
+  const value = String(mediaUrl).trim();
+  const apiRoot = toApiRoot(API_BASE_URL);
+
+  if (value.startsWith(`${apiRoot}/uploads/`)) {
+    return value.replace(apiRoot, "");
+  }
+
+  return value;
+}
+
+export function resolveMediaUrl(filePath) {
+  if (!filePath) return "";
+  if (/^(https?:|data:|blob:)/i.test(filePath)) return filePath;
+  const root = toApiRoot(API_BASE_URL);
+  const normalizedPath = filePath.startsWith("/")
+    ? filePath
+    : `/${filePath}`;
+  return `${root}${normalizedPath}`;
+}
 
 export async function getAllAccounts() {
   const response = await fetch(`${API_BASE_URL}/user/all`, {
@@ -8,10 +177,11 @@ export async function getAllAccounts() {
       ...getAuthHeaders(),
     },
   });
-    if (!response.ok) {
-        throw new Error("Failed to fetch accounts");
-    }
-    return await response.json();
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to fetch accounts");
+  }
+  return await response.json();
 }
 
 export async function createAccount(username, email, password, role) {
@@ -25,7 +195,8 @@ export async function createAccount(username, email, password, role) {
   });
 
   if (!response.ok) {
-    throw new Error("Failed to create account");
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to create account");
   }
 
   return await response.json();
@@ -39,7 +210,8 @@ export async function deleteAccount(id) {
     },
   });
   if (!response.ok) {
-    throw new Error("Failed to delete account");
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to delete account");
   }
   return await response.json();
 }
@@ -104,7 +276,8 @@ export async function updateTourStop(id, formData) {
     body: formData,
   });
   if (!response.ok) {
-    throw new Error("Failed to update tour stop");
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to update tour stop");
   }
   return await response.json();
 }
@@ -140,7 +313,9 @@ export async function updateStopMedia(id, mediaUrl) {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ mediaUrl: normalizedMediaUrl ?? null }),
+    body: JSON.stringify({
+      mediaUrl: normalizedMediaUrl ? normalizedMediaUrl : null,
+    }),
   });
 
   if (response.status === 404) {
@@ -152,24 +327,6 @@ export async function updateStopMedia(id, mediaUrl) {
   if (!response.ok) {
     const errorText = await response.text();
     throw new Error(errorText || "Failed to update stop media");
-  }
-
-  return await response.json();
-}
-
-export async function getQRCodeStatistics(qrCodeId) {
-  const response = await fetch(`${API_BASE_URL}/qrcode/statistics/${qrCodeId}`, {
-    headers: {
-      ...getAuthHeaders(),
-    },
-  });
-
-  if (response.status === 404) {
-    return null;
-  }
-
-  if (!response.ok) {
-    throw new Error("Failed to fetch QR code statistics");
   }
 
   return await response.json();
