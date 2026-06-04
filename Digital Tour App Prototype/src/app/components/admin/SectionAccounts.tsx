@@ -22,6 +22,7 @@ export function SectionAccounts({
   settings,
   onChange,
 }: Props) {
+  const [accounts, setAccounts] = useState<AdminAccount[]>([]);
   const [form, setForm] = useState({
     username: "",
     password: "",
@@ -41,11 +42,23 @@ export function SectionAccounts({
     loadAccounts();
   }, []);
 
+  const normalizeAccount = (account: any): AdminAccount => ({
+    id: String(account.id ?? account.Id ?? ""),
+    username: account.username ?? account.Username ?? "",
+    password: account.password ?? account.Password ?? "",
+    role: (account.role ?? account.Role ?? "Editor") as AdminAccount["role"],
+    email: account.email ?? account.Email ?? undefined,
+  });
+
   const loadAccounts = async () => {
     try {
       setIsLoadingAccounts(true);
-      const accounts = await getAllAccounts();
-      onChange({ accounts }, { action: "load-accounts", target: "all" });
+      const response = await getAllAccounts();
+      const loadedAccounts = Array.isArray(response)
+        ? response.map(normalizeAccount)
+        : [];
+      setAccounts(loadedAccounts);
+      onChange({ accounts: loadedAccounts }, { action: "load-accounts", target: "all" });
     } catch (err) {
       setErrorModal(
         language === "nl"
@@ -78,11 +91,7 @@ export function SectionAccounts({
       return;
     }
 
-    if (
-      settings.accounts.some(
-        (a) => a.username === form.username,
-      )
-    ) {
+    if (accounts.some((a) => a.username === form.username)) {
       setUsernameError(
         language === "nl"
           ? "Gebruikersnaam bestaat al"
@@ -153,7 +162,7 @@ export function SectionAccounts({
       );
       return;
     }
-    if (settings.accounts.length <= 1) {
+    if (accounts.length <= 1) {
       setErrorModal(
         language === "nl"
           ? "Minimaal 1 account vereist"
@@ -276,6 +285,7 @@ export function SectionAccounts({
                 <option value="Editor">Editor</option>
               </select>
               <button
+                type="button"
                 onClick={create}
                 disabled={isCreating}
                 className="bg-[#0066B3] text-white px-4 py-2 rounded-lg hover:opacity-90 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -283,6 +293,7 @@ export function SectionAccounts({
                 {language === "nl" ? "Aanmaken" : "Create"}
               </button>
               <button
+                type="button"
                 onClick={() => setShowForm(false)}
                 disabled={isCreating}
                 className="bg-gray-400 text-white px-4 py-2 rounded-lg hover:opacity-90 hover:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
@@ -303,7 +314,7 @@ export function SectionAccounts({
             </p>
           </div>
         ) : (
-          settings.accounts.map((acc) => (
+          accounts.map((acc) => (
           <div
             key={acc.id}
             className="flex items-center gap-3 border-2 border-gray-200 rounded-xl p-3"
@@ -319,6 +330,7 @@ export function SectionAccounts({
               </p>
             </div>
             <button
+              type="button"
               onClick={() => remove(acc)}
               disabled={isDeleting || acc.username === settings.currentSession?.username}
               className="text-red-600 hover:bg-red-50 hover:cursor-pointer p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
@@ -364,14 +376,7 @@ export function SectionAccounts({
             try {
               setIsDeleting(true);
               await deleteAccount(confirmDelete.id);
-              onChange(
-                {
-                  accounts: settings.accounts.filter(
-                    (a) => a.id !== confirmDelete.id,
-                  ),
-                },
-                { action: "delete-account", target: confirmDelete.username },
-              );
+              await loadAccounts();
               setConfirmDelete(null);
             } catch (err) {
               setErrorModal(

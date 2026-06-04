@@ -36,6 +36,7 @@ import { SectionMedia } from "./admin/SectionMedia";
 import { SectionHistory } from "./admin/SectionHistory";
 import { SectionManualAdmin } from "./admin/SectionManualAdmin";
 import { SectionStart } from "./admin/SectionStart";
+import { createTourStop, saveTourStop } from "../../services/api";
 // Removed: SectionTheme, SectionScavenger, SectionManualUser, SectionBattery
 
 interface AdminPanelProps {
@@ -90,31 +91,41 @@ export function AdminPanel({
 
   // ── Stop edit screen (kept from original flow) ─────────────────────────────
   if (editingStop || isCreating) {
-    const handleSave = (stop: Stop) => {
+    const handleSave = async (stop: Stop) => {
       const actor =
         settings.currentSession?.username ?? "admin";
-      if (isCreating) {
-        const newId =
-          Math.max(...stops.map((s) => s.id), 0) + 1;
-        onUpdateStops([...stops, { ...stop, id: newId }]);
-        onUpdateSettings(
-          {},
-          {
-            action: "create-stop",
-            target: stop.title.nl || `#${newId}`,
-          },
+      try {
+        if (isCreating) {
+          const createdStop = await createTourStop(stop);
+          onUpdateStops([...stops, createdStop]);
+          onUpdateSettings(
+            {},
+            {
+              action: "create-stop",
+              target: createdStop.title.nl || `#${createdStop.id}`,
+            },
+          );
+        } else {
+          const updatedStop = await saveTourStop(stop.id, stop);
+          onUpdateStops(
+            stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)),
+          );
+          onUpdateSettings(
+            {},
+            {
+              action: "update-stop",
+              target: updatedStop.title.nl || `#${updatedStop.id}`,
+            },
+          );
+        }
+      } catch (error) {
+        console.error("Failed to save stop", error);
+        alert(
+          language === "nl"
+            ? "Opslaan van de stop is mislukt. Controleer of de backend draait."
+            : "Saving the stop failed. Check whether the backend is running.",
         );
-      } else {
-        onUpdateStops(
-          stops.map((s) => (s.id === stop.id ? stop : s)),
-        );
-        onUpdateSettings(
-          {},
-          {
-            action: "update-stop",
-            target: stop.title.nl || `#${stop.id}`,
-          },
-        );
+        return;
       }
       void actor;
       setEditingStop(null);
@@ -147,9 +158,7 @@ export function AdminPanel({
     onBack();
   };
 
-  const currentUserRole = settings.accounts.find(
-    (acc) => acc.username === settings.currentSession?.username,
-  )?.role;
+  const currentUserRole = settings.currentSession?.role;
 
   const isAdminUser = currentUserRole === "Admin";
 

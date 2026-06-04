@@ -1,6 +1,7 @@
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { Stop, Language } from "../../types";
 import { SortableList } from "./SortableList";
+import { deleteTourStop } from "../../../services/api";
 
 interface Props {
   language: Language;
@@ -19,7 +20,7 @@ export function SectionStops({
   onCreate,
   log,
 }: Props) {
-  const handleDelete = (stop: Stop) => {
+  const handleDelete = async (stop: Stop) => {
     if (
       confirm(
         language === "nl"
@@ -27,8 +28,18 @@ export function SectionStops({
           : "Are you sure you want to delete this stop?",
       )
     ) {
-      onUpdateStops(stops.filter((s) => s.id !== stop.id));
-      log("delete-stop", stop.title.nl || `#${stop.id}`);
+      try {
+        await deleteTourStop(stop.id);
+        onUpdateStops(stops.filter((s) => s.id !== stop.id));
+        log("delete-stop", stop.title.nl || `#${stop.id}`);
+      } catch (error) {
+        console.error("Failed to delete stop", error);
+        alert(
+          language === "nl"
+            ? "Verwijderen van de stop is mislukt."
+            : "Deleting the stop failed.",
+        );
+      }
     }
   };
 

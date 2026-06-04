@@ -10,6 +10,7 @@ import {
   QrCode,
 } from "lucide-react";
 import { Language, Stop } from "../../types";
+import { resolveMediaUrl, saveTourStop, updateStopMedia, uploadMedia } from "../../../services/api";
 
 interface Props {
   language: Language;
@@ -21,17 +22,7 @@ type MediaKind = "image" | "video" | "audio";
 
 function detectKind(file: File): MediaKind {
   if (file.type.startsWith("video/")) return "video";
-  if (file.type.startsWith("audio/")) return "audio";
   return "image";
-}
-
-function readAsDataURL(file: File): Promise<string> {
-  return new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(reader.result as string);
-    reader.onerror = reject;
-    reader.readAsDataURL(file);
-  });
 }
 
 export function SectionMedia({
@@ -87,21 +78,60 @@ export function SectionMedia({
     if (!files || files.length === 0) return;
     const file = files[0];
     const kind = detectKind(file);
-    const url = await readAsDataURL(file);
-    updateMedia(stopId, { type: kind, url });
+    const targetStop = stops.find((s) => s.id === stopId);
+    if (!targetStop) return;
+    try {
+      const uploaded = await uploadMedia(file);
+      const mediaUrl = uploaded?.filePath ?? uploaded?.fileUrl ?? "";
+      if (!mediaUrl) {
+        throw new Error("No media path returned by API");
+      }
+      const updatedStop = await saveTourStop(stopId, {
+        ...targetStop,
+        media: { type: kind, url: mediaUrl },
+      });
+      onUpdateStops(
+        stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)),
+      );
+    } catch (error) {
+      console.error("Failed to upload media", error);
+      alert(
+        language === "nl"
+          ? "Uploaden van media is mislukt."
+          : "Uploading media failed.",
+      );
+    }
   };
 
-  const saveUrl = () => {
+  const saveUrl = async () => {
     if (urlFormId == null || !urlForm.url.trim()) return;
-    updateMedia(urlFormId, {
-      type: urlForm.type,
-      url: urlForm.url.trim(),
-    });
-    setUrlFormId(null);
-    setUrlForm({ type: "image", url: "" });
+    const nextUrl = urlForm.url.trim();
+    const targetStop = stops.find((s) => s.id === urlFormId);
+    if (!targetStop) return;
+    try {
+      const updatedStop = await saveTourStop(urlFormId, {
+        ...targetStop,
+        media: {
+          type: urlForm.type,
+          url: nextUrl,
+        },
+      });
+      onUpdateStops(
+        stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)),
+      );
+      setUrlFormId(null);
+      setUrlForm({ type: "image", url: "" });
+    } catch (error) {
+      console.error("Failed to save media URL", error);
+      alert(
+        language === "nl"
+          ? "Opslaan van de media-URL is mislukt."
+          : "Saving the media URL failed.",
+      );
+    }
   };
 
-  const remove = (stop: Stop) => {
+  const remove = async (stop: Stop) => {
     if (!stop.media) return;
     if (
       confirm(
@@ -110,7 +140,21 @@ export function SectionMedia({
           : "Remove media?",
       )
     ) {
-      updateMedia(stop.id, undefined);
+      try {
+        await updateStopMedia(stop.id, null);
+        onUpdateStops(
+          stops.map((s) =>
+            s.id === stop.id ? { ...s, media: undefined } : s,
+          ),
+        );
+      } catch (error) {
+        console.error("Failed to remove media", error);
+        alert(
+          language === "nl"
+            ? "Verwijderen van media is mislukt."
+            : "Removing media failed.",
+        );
+      }
     }
   };
 
@@ -123,8 +167,8 @@ export function SectionMedia({
       </h2>
       <p className="text-gray-600 mb-4">
         {language === "nl"
-          ? "Sleep foto's, video's of audio direct naar een stop, of plak een URL. Rechts zie je de gekoppelde QR-code."
-          : "Drag photos, videos or audio directly onto a stop, or paste a URL. On the right you see the linked QR code."}
+          ? "Sleep foto's of video's direct naar een stop, of plak een URL. Rechts zie je de gekoppelde QR-code."
+          : "Drag photos or videos directly onto a stop, or paste a URL. On the right you see the linked QR code."}
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -200,14 +244,14 @@ export function SectionMedia({
                   <div className="aspect-video bg-black flex items-center justify-center">
                     {m!.type === "image" && (
                       <img
-                        src={m!.url}
+                        src={resolveMediaUrl(m!.url)}
                         alt=""
                         className="w-full h-full object-cover"
                       />
                     )}
                     {m!.type === "video" && (
                       <video
-                        src={m!.url}
+                          src={resolveMediaUrl(m!.url)}
                         className="w-full h-full object-cover"
                         muted
                       />
@@ -216,7 +260,7 @@ export function SectionMedia({
                       <div className="flex flex-col items-center text-white gap-2">
                         <Music className="w-10 h-10" />
                         <audio
-                          src={m!.url}
+                          src={resolveMediaUrl(m!.url)}
                           controls
                           className="max-w-full"
                         />
@@ -228,18 +272,16 @@ export function SectionMedia({
                     <Upload className="w-8 h-8" />
                     <p className="text-sm">
                       {language === "nl"
-                        ? "Sleep hierheen of klik om te uploaden"
-                        : "Drop here or click to upload"}
+                        ? "Sleep hierheen of klik om een foto of video te uploaden"
+                        : "Drop here or click to upload a photo or video"}
                     </p>
-                    <p className="text-xs text-gray-400">
-                      JPG · PNG · MP4 · MP3
-                    </p>
+                    <p className="text-xs text-gray-400">JPG · PNG · MP4 · WebM</p>
                   </div>
                 )}
                 <input
                   type="file"
                   className="hidden"
-                  accept="image/*,video/*,audio/*"
+                  accept="image/*,video/*"
                   onChange={(e) =>
                     handleFiles(stop.id, e.target.files)
                   }
