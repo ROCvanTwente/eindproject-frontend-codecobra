@@ -1,4 +1,4 @@
-const API_URL = "http://digitalworkplacetestapi.runasp.net/api/qrcode";
+const API_URL = "http://digitalworkplacetestapi.runasp.net/api";
 
 export async function recordScan(qrCode: string) {
   const response = await fetch(`${API_URL}/scan`, {

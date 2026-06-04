@@ -1,33 +1,6 @@
 import { getAuthHeaders } from "./authApi";
 
-const API_BASE_URL =
-  import.meta.env?.VITE_API_BASE_URL ?? "http://localhost:5000/api";
-
-function toApiRoot(url) {
-  return url.replace(/\/$/, "").replace(/\/api$/, "");
-}
-
-export function normalizeMediaUrlForStorage(mediaUrl) {
-  if (!mediaUrl) return mediaUrl;
-  const value = String(mediaUrl).trim();
-  const apiRoot = toApiRoot(API_BASE_URL);
-
-  if (value.startsWith(`${apiRoot}/uploads/`)) {
-    return value.replace(apiRoot, "");
-  }
-
-  return value;
-}
-
-export function resolveMediaUrl(filePath) {
-  if (!filePath) return "";
-  if (/^https?:\/\//i.test(filePath)) return filePath;
-  const root = toApiRoot(API_BASE_URL);
-  const normalizedPath = filePath.startsWith("/")
-    ? filePath
-    : `/${filePath}`;
-  return `${root}${normalizedPath}`;
-}
+const API_BASE_URL = "https://digitalworkplacetestapi.runasp.net/api";
 
 export async function getAllAccounts() {
   const response = await fetch(`${API_BASE_URL}/user/all`, {

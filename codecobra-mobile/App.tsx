@@ -9,7 +9,6 @@ import { RouteOverviewScreen } from "./src/screens/RouteOverviewScreen";
 import { FloorPlanScreen } from "./src/screens/FloorPlanScreen";
 import { AdminScreen } from "./src/screens/AdminScreen";
 import { Language } from "./src/types";
-import { useEffect } from "react";
 
 export type RootStackParamList = {
   Start: undefined;
@@ -26,7 +25,7 @@ export default function App() {
   return (
     <AppProvider>
       <NavigationContainer>
-      <StatusBar hidden={true} />
+        <StatusBar barStyle="light-content" />
         <Stack.Navigator
           initialRouteName="Start"
           screenOptions={{ headerShown: false, animation: "slide_from_right" }}
