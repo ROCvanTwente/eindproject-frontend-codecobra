@@ -5,36 +5,20 @@ import {
   TouchableOpacity,
   StyleSheet,
   ScrollView,
-  Animated,
   Dimensions,
   Image,
   SafeAreaView,
-  Alert,
   ActivityIndicator,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { WebView } from "react-native-webview";
-import Sound from "react-native-sound";
-import RNFS from "react-native-fs";
+import Tts from "react-native-tts";
 
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language, Stop, Gender } from "../types";
 import { getStopById } from "../data/api";
-
-// --- CONFIGURATIE ---
-const ELEVEN_LABS_API_KEY = "JOUW_ELEVENLABS_API_KEY"; // Vul hier je key in
-const VOICE_IDS = {
-  nl: {
-    female: "94W4cf0CMSgymY1uoRiX",
-    male: "dLPO5AsXc3FZDbTh1IKa",
-  },
-  en: {
-    female: "qSeXEcewz7tA0Q0qk9fH",
-    male: "IRHApOXLvnW57QJPQH2P",
-  },
-};
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -42,9 +26,9 @@ const { height: SCREEN_H } = Dimensions.get("window");
 
 type SpeedKey = "slow" | "normal" | "fast";
 const SPEED_PRESETS: Record<SpeedKey, { rate: number; nl: string; en: string }> = {
-  slow: { rate: 0.4, nl: "Langzaam", en: "Slow" },
-  normal: { rate: 0.55, nl: "Normaal", en: "Normal" },
-  fast: { rate: 0.7, nl: "Snel", en: "Fast" },
+  slow: { rate: 0.35, nl: "Langzaam", en: "Slow" },
+  normal: { rate: 0.5, nl: "Normaal", en: "Normal" },
+  fast: { rate: 0.65, nl: "Snel", en: "Fast" },
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, "StopDetail">;
@@ -71,20 +55,64 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const { stops, settings } = useAppContext();
   const { stopId, language: initialLang } = route.params;
   const language: Language = initialLang;
-  const gender: Gender = settings.voiceGender || "female";
 
   const [stop, setStop] = useState<Stop | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(false);
 
   const stopIndex = stops.findIndex((s) => s.id === stopId);
-  const isLastStop = stopIndex === stops.length - 1;
 
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [isDownloading, setIsDownloading] = useState(false);
   const [speed, setSpeed] = useState<SpeedKey>(settings.textSpeed || "normal");
   const scrollRef = useRef<ScrollView>(null);
-  const soundRef = useRef<Sound | null>(null);
+
+  const setupTts = useCallback(async () => {
+    try {
+      await Tts.getInitStatus();
+
+      // Zoek naar de beste stemmen op het toestel
+      const voices = await Tts.voices();
+      const targetLang = language === "nl" ? "nl-NL" : "en-US";
+
+      // Filter op taal en zoek naar 'premium', 'neural' of 'enhanced' (deze klinken menselijk)
+      const bestVoice = voices.find(v =>
+        v.language.includes(targetLang) &&
+        (v.name.toLowerCase().includes("premium") ||
+          v.name.toLowerCase().includes("enhanced") ||
+          v.name.toLowerCase().includes("neural"))
+      ) || voices.find(v => v.language.includes(targetLang));
+
+      if (bestVoice) {
+        await Tts.setDefaultVoice(bestVoice.id);
+      }
+
+      await Tts.setDefaultLanguage(targetLang);
+      // Iets lagere pitch maakt het vaak natuurlijker
+      await Tts.setDucking(true);
+    } catch (e) {
+      console.log("TTS Setup error:", e);
+    }
+  }, [language]);
+
+  useEffect(() => {
+    setupTts();
+
+    // Define handlers for clean removal
+    const onStart = () => setIsSpeaking(true);
+    const onFinish = () => setIsSpeaking(false);
+    const onCancel = () => setIsSpeaking(false);
+
+    Tts.addEventListener("tts-start", onStart);
+    Tts.addEventListener("tts-finish", onFinish);
+    Tts.addEventListener("tts-cancel", onCancel);
+
+    return () => {
+      Tts.stop();
+      Tts.removeEventListener("tts-start", onStart);
+      Tts.removeEventListener("tts-finish", onFinish);
+      Tts.removeEventListener("tts-cancel", onCancel);
+    };
+  }, []);
 
   useEffect(() => {
     async function fetchStopData() {
@@ -103,107 +131,31 @@ export function StopDetailScreen({ navigation, route }: Props) {
     fetchStopData();
   }, [stopId]);
 
-  // Cleanup: stop audio bij verlaten scherm
-  useEffect(() => {
-    return () => {
-      if (soundRef.current) {
-        soundRef.current.stop();
-        soundRef.current.release();
-      }
-    };
-  }, []);
-
   const handleTTS = useCallback(async () => {
     if (isSpeaking) {
-      soundRef.current?.stop(() => {
-        setIsSpeaking(false);
-      });
+      Tts.stop();
       return;
     }
 
     if (!stop) return;
 
-    // Bepaal welke tekst en welke voiceID
-    const text = language === "nl" 
-      ? `${stop.titleNl}. ${stop.descriptionNl}` 
+    const text = language === "nl"
+      ? `${stop.titleNl}. ${stop.descriptionNl}`
       : `${stop.titleEn}. ${stop.descriptionEn}`;
-    
-    const voiceId = VOICE_IDS[language][gender];
-    
-    // Unieke bestandsnaam voor caching (gebaseerd op stop, taal en gender)
-    const fileName = `tts_${stop.id}_${language}_${gender}.mp3`;
-    const path = `${RNFS.CachesDirectoryPath}/${fileName}`;
+
+    const ttsLang = language === "nl" ? "nl-NL" : "en-US";
 
     try {
-      const fileExists = await RNFS.exists(path);
-
-      if (!fileExists) {
-        setIsDownloading(true);
-        const response = await fetch(
-          `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
-          {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-              "xi-api-key": ELEVEN_LABS_API_KEY,
-            },
-            body: JSON.stringify({
-              text: text,
-              model_id: "eleven_multilingual_v2",
-              voice_settings: { stability: 0.5, similarity_boost: 0.75 },
-            }),
-          }
-        );
-
-        if (!response.ok) throw new Error("ElevenLabs API error");
-
-        const blob = await response.blob();
-        const base64data = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.readAsDataURL(blob);
-          reader.onloadend = () => {
-            const base64 = (reader.result as string).split(",")[1];
-            resolve(base64);
-          };
-        });
-
-        await RNFS.writeFile(path, base64data, "base64");
-        setIsDownloading(false);
-      }
-
-      // Afspelen
-      const sound = new Sound(path, "", (error) => {
-        if (error) {
-          setIsSpeaking(false);
-          return;
-        }
-        soundRef.current = sound;
-        // ElevenLabs heeft vaste snelheid in MP3, maar we kunnen de afspeelsnelheid forceren:
-        const playSpeed = speed === "slow" ? 0.85 : speed === "fast" ? 1.15 : 1.0;
-        sound.setSpeed(playSpeed);
-        
-        setIsSpeaking(true);
-        sound.play((success) => {
-          setIsSpeaking(false);
-          sound.release();
-        });
-      });
-
+      await Tts.setDefaultLanguage(ttsLang);
+      await Tts.setDefaultRate(SPEED_PRESETS[speed].rate);
+      Tts.speak(text);
     } catch (err) {
-      console.error(err);
-      setIsDownloading(false);
-      setIsSpeaking(false);
-      Alert.alert(
-        language === "nl" ? "Fout" : "Error",
-        language === "nl" ? "Kon audio niet laden." : "Could not load audio."
-      );
+      console.error("TTS Error:", err);
     }
-  }, [isSpeaking, stop, language, gender, speed]);
+  }, [isSpeaking, stop, language, speed]);
 
   const handleBack = () => {
-    if (soundRef.current) {
-        soundRef.current.stop();
-    }
+    Tts.stop();
     navigation.goBack();
   };
 
@@ -219,12 +171,12 @@ export function StopDetailScreen({ navigation, route }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={{ padding: 20, alignItems: 'center' }}>
-            <Text style={{ fontSize: 18, marginBottom: 20 }}>
-                {language === "nl" ? "Stop niet gevonden." : "Stop not found."}
-            </Text>
-            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-                <Text style={styles.backBtnText}>{language === "nl" ? "Terug" : "Back"}</Text>
-            </TouchableOpacity>
+          <Text style={{ fontSize: 18, marginBottom: 20 }}>
+            {language === "nl" ? "Stop niet gevonden." : "Stop not found."}
+          </Text>
+          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+            <Text style={styles.backBtnText}>{language === "nl" ? "Terug" : "Back"}</Text>
+          </TouchableOpacity>
         </View>
       </SafeAreaView>
     );
@@ -301,30 +253,25 @@ export function StopDetailScreen({ navigation, route }: Props) {
           <Text style={styles.stopTitle}>{language === "nl" ? stop.titleNl : stop.titleEn}</Text>
           <Text style={styles.stopDescription}>{language === "nl" ? stop.descriptionNl : stop.descriptionEn}</Text>
 
-            <View style={styles.nextCard}>
-              <Text style={styles.nextCardText}>
-                {language === "nl"
-                  ? "Ga terug en scan de volgende QR-code"
-                  : "Go back and scan the next QR code"}
-              </Text>
-            </View>
+          <View style={styles.nextCard}>
+            <Text style={styles.nextCardText}>
+              {language === "nl"
+                ? "Ga terug en scan de volgende QR-code"
+                : "Go back and scan the next QR code"}
+            </Text>
+          </View>
           <View style={{ height: 80 }} />
         </ScrollView>
 
         <TouchableOpacity
-          style={[styles.fab, styles.fabLeft, (isSpeaking || isDownloading) && styles.fabActive]}
+          style={[styles.fab, styles.fabLeft, isSpeaking && styles.fabActive]}
           onPress={handleTTS}
-          disabled={isDownloading}
         >
-          {isDownloading ? (
-            <ActivityIndicator color="#fff" />
-          ) : (
-            <Ionicons
-              name={isSpeaking ? "volume-mute" : "volume-high"}
-              size={26}
-              color={isSpeaking ? "#fff" : PRIMARY}
-            />
-          )}
+          <Ionicons
+            name={isSpeaking ? "stop" : "volume-high"}
+            size={26}
+            color={isSpeaking ? "#fff" : PRIMARY}
+          />
         </TouchableOpacity>
 
         <TouchableOpacity
