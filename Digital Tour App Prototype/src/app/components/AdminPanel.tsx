@@ -36,6 +36,7 @@ import { SectionMedia } from "./admin/SectionMedia";
 import { SectionHistory } from "./admin/SectionHistory";
 import { SectionManualAdmin } from "./admin/SectionManualAdmin";
 import { SectionStart } from "./admin/SectionStart";
+import { SectionFloorPlan } from "./admin/SectionFloorPlan";
 import { createTourStop, saveTourStop } from "../../services/api";
 // Removed: SectionTheme, SectionScavenger, SectionManualUser, SectionBattery
 
@@ -60,6 +61,7 @@ export const SECTION_META: Array<{
 }> = [
   { key: "home", icon: Home, nl: "Overzicht", en: "Overview" },
   { key: "stops", icon: MapPin, nl: "Stops beheren", en: "Manage stops" },
+  { key: "floorPlan", icon: Compass, nl: "Plattegrond", en: "Floor plan" },
   { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
   // theme removed
@@ -193,6 +195,13 @@ export function AdminPanel({
               setIsCreating(true);
             }}
             log={(a, t) => onUpdateSettings({}, { action: a, target: t })}
+          />
+        );
+      case "floorPlan":
+        return (
+          <SectionFloorPlan
+            language={language}
+            stops={stops}
           />
         );
       case "background":

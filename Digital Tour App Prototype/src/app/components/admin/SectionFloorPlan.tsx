@@ -1,7 +1,11 @@
 import { useMemo } from "react";
 import { MapPin, Ruler, TriangleAlert } from "lucide-react";
 import { Language, Stop } from "../../types";
-import plattegrondImg from "../../../imports/PlattegrondGieterijBeganegrondV2.0.png";
+
+const plattegrondImg = new URL(
+  "../../../imports/PlattegrondGieterijBeganegrondV2.0.png",
+  import.meta.url,
+).href;
 
 const MAP_W = 1528;
 const MAP_H = 704;
@@ -23,9 +27,9 @@ export function SectionFloorPlan({ language, stops }: Props) {
   const positionedStops = useMemo(
     () =>
       stops
-        .filter((s) => typeof s.positionX === "number" && typeof s.positionY === "number")
+        .filter((s) => typeof s.mapX === "number" && typeof s.mapY === "number")
         .slice()
-        .sort((a, b) => a.order - b.order),
+        .sort((a, b) => a.id - b.id),
     [stops],
   );
 
@@ -83,8 +87,8 @@ export function SectionFloorPlan({ language, stops }: Props) {
             />
 
             {positionedStops.map((stop, index) => {
-              const x = typeof stop.positionX === "number" ? scaleX(stop.positionX) : 0;
-              const y = typeof stop.positionY === "number" ? scaleY(stop.positionY) : 0;
+              const x = typeof stop.mapX === "number" ? scaleX(stop.mapX) : 0;
+              const y = typeof stop.mapY === "number" ? scaleY(stop.mapY) : 0;
               return (
                 <div
                   key={stop.id}
@@ -92,8 +96,8 @@ export function SectionFloorPlan({ language, stops }: Props) {
                   style={{ left: `${x}%`, top: `${y}%` }}
                 >
                   <div className="relative flex items-center justify-center">
-                    <div className="absolute w-12 h-12 rounded-full bg-[#E30613]/20 animate-ping" />
-                    <div className="relative w-10 h-10 rounded-full bg-[#E30613] text-white border-4 border-white shadow-lg flex items-center justify-center">
+                    <div className="absolute w-5 h-5 rounded-full bg-[#E30613]/20 animate-ping" />
+                    <div className="relative w-4 h-4 rounded-full bg-[#E30613] text-white border border-white shadow-lg flex items-center justify-center text-[7px] leading-none">
                       {index + 1}
                     </div>
                   </div>
@@ -123,14 +127,14 @@ export function SectionFloorPlan({ language, stops }: Props) {
             <h3 className="text-lg font-semibold mb-3 text-gray-900">
               {language === "nl" ? "Stops zonder positie" : "Stops without position"}
             </h3>
-            {stops.filter((s) => s.positionX == null || s.positionY == null).length === 0 ? (
+            {stops.filter((s) => s.mapX == null || s.mapY == null).length === 0 ? (
               <p className="text-green-700 bg-green-50 border border-green-200 rounded-xl p-3">
                 {language === "nl" ? "Alle stops hebben een positie." : "All stops have a position."}
               </p>
             ) : (
               <div className="space-y-2 max-h-[420px] overflow-auto pr-1">
                 {stops
-                  .filter((s) => s.positionX == null || s.positionY == null)
+                  .filter((s) => s.mapX == null || s.mapY == null)
                   .map((stop) => (
                     <div
                       key={stop.id}
@@ -139,7 +143,7 @@ export function SectionFloorPlan({ language, stops }: Props) {
                       <TriangleAlert className="w-5 h-5 text-amber-600 flex-shrink-0" />
                       <div className="min-w-0">
                         <p className="font-medium text-gray-900 truncate">
-                          {language === "nl" ? stop.titleNl : stop.titleEn}
+                          {stop.title[language] || stop.title.nl || stop.title.en}
                         </p>
                         <p className="text-sm text-gray-500 truncate">
                           {language === "nl" ? "Geen positie ingesteld" : "No position set"}
