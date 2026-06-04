@@ -96,8 +96,10 @@ export function AdminPanel({
     const handleSave = async (stop: Stop) => {
       const actor =
         settings.currentSession?.username ?? "admin";
+      const existingStop = stops.find((s) => s.id === stop.id);
+      const shouldCreate = isCreating || !existingStop;
       try {
-        if (isCreating) {
+        if (shouldCreate) {
           const createdStop = await createTourStop(stop);
           onUpdateStops([...stops, createdStop]);
           onUpdateSettings(
@@ -162,7 +164,8 @@ export function AdminPanel({
 
   const currentUserRole = settings.currentSession?.role;
 
-  const isAdminUser = currentUserRole === "Admin";
+  const isAdminUser =
+    String(currentUserRole ?? "").toLowerCase() === "admin";
 
   const renderSection = () => {
     switch (section) {
@@ -202,6 +205,18 @@ export function AdminPanel({
           <SectionFloorPlan
             language={language}
             stops={stops}
+            onEdit={(s) => setEditingStop(s)}
+            onCreate={() => {
+              setEditingStop({
+                id: 0,
+                qrCode: "",
+                location: { nl: "", en: "" },
+                title: { nl: "", en: "" },
+                description: { nl: "", en: "" },
+                estimatedDuration: 3,
+              });
+              setIsCreating(true);
+            }}
           />
         );
       case "background":
