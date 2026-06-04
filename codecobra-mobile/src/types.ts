@@ -1,4 +1,5 @@
 export type Language = "nl" | "en";
+export type Gender = "female" | "male";
 
 export interface Stop {
   id: number;

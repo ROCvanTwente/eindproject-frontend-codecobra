@@ -10,14 +10,31 @@ import {
   Image,
   SafeAreaView,
   Alert,
+  ActivityIndicator,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import Tts from "react-native-tts";
 import { WebView } from "react-native-webview";
+import Sound from "react-native-sound";
+import RNFS from "react-native-fs";
+
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
-import { Language } from "../types";
+import { Language, Stop, Gender } from "../types";
+import { getStopById } from "../data/api";
+
+// --- CONFIGURATIE ---
+const ELEVEN_LABS_API_KEY = "JOUW_ELEVENLABS_API_KEY"; // Vul hier je key in
+const VOICE_IDS = {
+  nl: {
+    female: "94W4cf0CMSgymY1uoRiX",
+    male: "dLPO5AsXc3FZDbTh1IKa",
+  },
+  en: {
+    female: "qSeXEcewz7tA0Q0qk9fH",
+    male: "IRHApOXLvnW57QJPQH2P",
+  },
+};
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -54,70 +71,161 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const { stops, settings } = useAppContext();
   const { stopId, language: initialLang } = route.params;
   const language: Language = initialLang;
+  const gender: Gender = settings.voiceGender || "female";
 
-  const stop = stops.find((s) => s.id === stopId);
+  const [stop, setStop] = useState<Stop | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(false);
+
   const stopIndex = stops.findIndex((s) => s.id === stopId);
   const isLastStop = stopIndex === stops.length - 1;
 
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [isDownloading, setIsDownloading] = useState(false);
   const [speed, setSpeed] = useState<SpeedKey>(settings.textSpeed || "normal");
   const scrollRef = useRef<ScrollView>(null);
-  const scrollY = useRef(new Animated.Value(0)).current;
+  const soundRef = useRef<Sound | null>(null);
 
   useEffect(() => {
-    const handleFinish = () => setIsSpeaking(false);
-    const handleCancel = () => setIsSpeaking(false);
-    const handleError = () => setIsSpeaking(false);
+    async function fetchStopData() {
+      try {
+        setLoading(true);
+        const data = await getStopById(stopId);
+        setStop(data);
+        setError(false);
+      } catch (err) {
+        console.error("Error fetching stop:", err);
+        setError(true);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchStopData();
+  }, [stopId]);
 
-    Tts.addEventListener("tts-finish", handleFinish);
-    Tts.addEventListener("tts-cancel", handleCancel);
-    Tts.addEventListener("tts-error", handleError);
-    void Tts.getInitStatus()
-      .then(() => Tts.setIgnoreSilentSwitch("ignore"))
-      .catch(() => undefined);
-
+  // Cleanup: stop audio bij verlaten scherm
+  useEffect(() => {
     return () => {
-      Tts.removeEventListener("tts-finish", handleFinish);
-      Tts.removeEventListener("tts-cancel", handleCancel);
-      Tts.removeEventListener("tts-error", handleError);
-      void Tts.stop();
+      if (soundRef.current) {
+        soundRef.current.stop();
+        soundRef.current.release();
+      }
     };
   }, []);
 
   const handleTTS = useCallback(async () => {
     if (isSpeaking) {
-      await Tts.stop();
-      setIsSpeaking(false);
+      soundRef.current?.stop(() => {
+        setIsSpeaking(false);
+      });
       return;
     }
+
     if (!stop) return;
-    const text = `${stop.title[language]}. ${stop.description[language]}`;
+
+    // Bepaal welke tekst en welke voiceID
+    const text = language === "nl" 
+      ? `${stop.titleNl}. ${stop.descriptionNl}` 
+      : `${stop.titleEn}. ${stop.descriptionEn}`;
+    
+    const voiceId = VOICE_IDS[language][gender];
+    
+    // Unieke bestandsnaam voor caching (gebaseerd op stop, taal en gender)
+    const fileName = `tts_${stop.id}_${language}_${gender}.mp3`;
+    const path = `${RNFS.CachesDirectoryPath}/${fileName}`;
+
     try {
-      await Tts.getInitStatus();
-      await Tts.setDefaultLanguage(language === "nl" ? "nl-NL" : "en-US");
-      await Tts.setDefaultRate(SPEED_PRESETS[speed].rate);
-      setIsSpeaking(true);
-      Tts.speak(text);
-    } catch {
+      const fileExists = await RNFS.exists(path);
+
+      if (!fileExists) {
+        setIsDownloading(true);
+        const response = await fetch(
+          `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+              "xi-api-key": ELEVEN_LABS_API_KEY,
+            },
+            body: JSON.stringify({
+              text: text,
+              model_id: "eleven_multilingual_v2",
+              voice_settings: { stability: 0.5, similarity_boost: 0.75 },
+            }),
+          }
+        );
+
+        if (!response.ok) throw new Error("ElevenLabs API error");
+
+        const blob = await response.blob();
+        const base64data = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.readAsDataURL(blob);
+          reader.onloadend = () => {
+            const base64 = (reader.result as string).split(",")[1];
+            resolve(base64);
+          };
+        });
+
+        await RNFS.writeFile(path, base64data, "base64");
+        setIsDownloading(false);
+      }
+
+      // Afspelen
+      const sound = new Sound(path, "", (error) => {
+        if (error) {
+          setIsSpeaking(false);
+          return;
+        }
+        soundRef.current = sound;
+        // ElevenLabs heeft vaste snelheid in MP3, maar we kunnen de afspeelsnelheid forceren:
+        const playSpeed = speed === "slow" ? 0.85 : speed === "fast" ? 1.15 : 1.0;
+        sound.setSpeed(playSpeed);
+        
+        setIsSpeaking(true);
+        sound.play((success) => {
+          setIsSpeaking(false);
+          sound.release();
+        });
+      });
+
+    } catch (err) {
+      console.error(err);
+      setIsDownloading(false);
       setIsSpeaking(false);
       Alert.alert(
-        language === "nl" ? "Spraak niet beschikbaar" : "Speech unavailable",
-        language === "nl"
-          ? "Tekst-naar-spraak kon niet worden gestart."
-          : "Text-to-speech could not be started.",
+        language === "nl" ? "Fout" : "Error",
+        language === "nl" ? "Kon audio niet laden." : "Could not load audio."
       );
     }
-  }, [isSpeaking, stop, language, speed]);
+  }, [isSpeaking, stop, language, gender, speed]);
 
   const handleBack = () => {
-    void Tts.stop();
+    if (soundRef.current) {
+        soundRef.current.stop();
+    }
     navigation.goBack();
   };
 
-  if (!stop) {
+  if (loading) {
+    return (
+      <SafeAreaView style={[styles.safe, { justifyContent: "center", alignItems: "center", backgroundColor: "#111827" }]}>
+        <ActivityIndicator size="large" color={PRIMARY} />
+      </SafeAreaView>
+    );
+  }
+
+  if (error || !stop) {
     return (
       <SafeAreaView style={styles.safe}>
-        <Text style={{ padding: 20, fontSize: 18 }}>Stop niet gevonden.</Text>
+        <View style={{ padding: 20, alignItems: 'center' }}>
+            <Text style={{ fontSize: 18, marginBottom: 20 }}>
+                {language === "nl" ? "Stop niet gevonden." : "Stop not found."}
+            </Text>
+            <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
+                <Text style={styles.backBtnText}>{language === "nl" ? "Terug" : "Back"}</Text>
+            </TouchableOpacity>
+        </View>
       </SafeAreaView>
     );
   }
@@ -158,17 +266,14 @@ export function StopDetailScreen({ navigation, route }: Props) {
 
   return (
     <View style={styles.container}>
-      {/* Media section — top half */}
       <View style={styles.mediaSection}>
         {renderMedia()}
 
-        {/* Back button */}
         <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
           <Ionicons name="arrow-back" size={22} color={PRIMARY} />
           <Text style={styles.backBtnText}>{language === "nl" ? "Terug" : "Back"}</Text>
         </TouchableOpacity>
 
-        {/* Stop counter badge */}
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
             {stopIndex + 1} / {stops.length}
@@ -176,9 +281,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
         </View>
       </View>
 
-      {/* Text section — dark bottom */}
       <View style={styles.textSection}>
-        {/* Speed selector */}
         <View style={styles.speedRow}>
           <Ionicons name="speedometer-outline" size={18} color="rgba(255,255,255,0.7)" />
           {(Object.keys(SPEED_PRESETS) as SpeedKey[]).map((key) => (
@@ -195,21 +298,9 @@ export function StopDetailScreen({ navigation, route }: Props) {
         </View>
 
         <ScrollView ref={scrollRef} style={styles.textScroll} contentContainerStyle={styles.textContent}>
-          <Text style={styles.stopTitle}>{stop.title[language]}</Text>
-          <Text style={styles.stopDescription}>{stop.description[language]}</Text>
+          <Text style={styles.stopTitle}>{language === "nl" ? stop.titleNl : stop.titleEn}</Text>
+          <Text style={styles.stopDescription}>{language === "nl" ? stop.descriptionNl : stop.descriptionEn}</Text>
 
-          {isLastStop ? (
-            <View style={styles.endCard}>
-              <Text style={styles.endCardTitle}>
-                {language === "nl" ? "✓ Rondleiding voltooid" : "✓ Tour completed"}
-              </Text>
-              <Text style={styles.endCardText}>
-                {language === "nl"
-                  ? "Bedankt voor je bezoek aan De Gieterij!"
-                  : "Thank you for visiting De Gieterij!"}
-              </Text>
-            </View>
-          ) : (
             <View style={styles.nextCard}>
               <Text style={styles.nextCardText}>
                 {language === "nl"
@@ -217,23 +308,25 @@ export function StopDetailScreen({ navigation, route }: Props) {
                   : "Go back and scan the next QR code"}
               </Text>
             </View>
-          )}
           <View style={{ height: 80 }} />
         </ScrollView>
 
-        {/* TTS button */}
         <TouchableOpacity
-          style={[styles.fab, styles.fabLeft, isSpeaking && styles.fabActive]}
+          style={[styles.fab, styles.fabLeft, (isSpeaking || isDownloading) && styles.fabActive]}
           onPress={handleTTS}
+          disabled={isDownloading}
         >
-          <Ionicons
-            name={isSpeaking ? "volume-mute" : "volume-high"}
-            size={26}
-            color={isSpeaking ? "#fff" : PRIMARY}
-          />
+          {isDownloading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Ionicons
+              name={isSpeaking ? "volume-mute" : "volume-high"}
+              size={26}
+              color={isSpeaking ? "#fff" : PRIMARY}
+            />
+          )}
         </TouchableOpacity>
 
-        {/* Scroll to top/bottom button */}
         <TouchableOpacity
           style={[styles.fab, styles.fabRight]}
           onPress={() =>
