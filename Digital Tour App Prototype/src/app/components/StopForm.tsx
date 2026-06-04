@@ -22,6 +22,10 @@ export function StopForm({
   onCancel,
   isCreating,
 }: StopFormProps) {
+  const hugeInputClass =
+    "w-full border-2 border-gray-300 rounded-lg p-6 text-2xl leading-tight focus:border-[#0066B3] focus:outline-none";
+  const hugeTextAreaClass = `${hugeInputClass} min-h-[320px] leading-relaxed`;
+
   const [formData, setFormData] = useState<Stop>(stop);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [isMediaDragging, setIsMediaDragging] = useState(false);
@@ -162,7 +166,7 @@ export function StopForm({
         <div className="space-y-8">
           {/* QR Code */}
           <div>
-            <label className="block text-xl mb-3">
+            <label className="block text-2xl mb-4">
               {language === "nl" ? "QR Code" : "QR Code"}
             </label>
             <input
@@ -171,7 +175,7 @@ export function StopForm({
               onChange={(e) =>
                 updateField("qrCode", e.target.value)
               }
-              className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+              className={hugeInputClass}
               placeholder="GIETERIJ-001"
               required
             />
@@ -180,7 +184,7 @@ export function StopForm({
           {/* Location NL/EN */}
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Locatie (Nederlands)"
                   : "Location (Dutch)"}
@@ -195,13 +199,13 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                className={hugeInputClass}
                 placeholder="Hoofdingang - Hal"
                 required
               />
             </div>
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Locatie (Engels) — optioneel"
                   : "Location (English) — optional"}
@@ -216,7 +220,7 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                className={hugeInputClass}
                 placeholder={
                   language === "nl"
                     ? "Leeg laten = Nederlandse tekst gebruiken"
@@ -229,7 +233,7 @@ export function StopForm({
           {/* Title NL/EN */}
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Titel (Nederlands)"
                   : "Title (Dutch)"}
@@ -244,13 +248,13 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                className={hugeInputClass}
                 placeholder="Welkom bij de Gieterij"
                 required
               />
             </div>
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Titel (Engels) — optioneel"
                   : "Title (English) — optional"}
@@ -265,7 +269,7 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                className={hugeInputClass}
                 placeholder={
                   language === "nl"
                     ? "Leeg laten = Nederlandse tekst gebruiken"
@@ -278,7 +282,7 @@ export function StopForm({
           {/* Description NL/EN */}
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Beschrijving (Nederlands)"
                   : "Description (Dutch)"}
@@ -292,13 +296,13 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none min-h-[150px]"
+                className={hugeTextAreaClass}
                 placeholder="Beschrijving..."
                 required
               />
             </div>
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Beschrijving (Engels) — optioneel"
                   : "Description (English) — optional"}
@@ -312,7 +316,7 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none min-h-[150px]"
+                className={hugeTextAreaClass}
                 placeholder={
                   language === "nl"
                     ? "Leeg laten = Nederlandse tekst gebruiken"
@@ -401,7 +405,7 @@ export function StopForm({
 
           {/* Duration */}
           <div>
-            <label className="block text-xl mb-3">
+            <label className="block text-2xl mb-4">
               {language === "nl"
                 ? "Geschatte duur (minuten)"
                 : "Estimated duration (minutes)"}
@@ -415,7 +419,7 @@ export function StopForm({
                   e.target.value ? parseInt(e.target.value) : undefined,
                 )
               }
-              className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+              className={hugeInputClass}
               min="1"
               required
             />
@@ -486,7 +490,7 @@ export function StopForm({
                 </div>
 
                 <div>
-                  <label className="block text-lg mb-2">
+                  <label className="block text-2xl mb-3">
                     {language === "nl" ? "Type" : "Type"}
                   </label>
                   <select
@@ -500,7 +504,7 @@ export function StopForm({
                           | "audio",
                       )
                     }
-                    className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                      className={hugeInputClass}
                   >
                     <option value="image">
                       {language === "nl"
@@ -512,7 +516,7 @@ export function StopForm({
                 </div>
 
                 <div>
-                  <label className="block text-lg mb-2">
+                  <label className="block text-2xl mb-3">
                     URL
                   </label>
                   <input
@@ -521,7 +525,7 @@ export function StopForm({
                     onChange={(e) =>
                       updateMedia("url", e.target.value)
                     }
-                    className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                    className={hugeInputClass}
                     placeholder="https://... of /uploads/..."
                     required
                   />
@@ -546,7 +550,7 @@ export function StopForm({
                 {formData.media.type === "video" && (
                   <>
                     <div>
-                      <label className="block text-lg mb-2">
+                      <label className="block text-2xl mb-3">
                         {language === "nl"
                           ? "Duur (seconden)"
                           : "Duration (seconds)"}
@@ -562,12 +566,12 @@ export function StopForm({
                               : undefined,
                           )
                         }
-                        className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                        className={hugeInputClass}
                         min="1"
                       />
                     </div>
                     <div>
-                      <label className="block text-lg mb-2">
+                      <label className="block text-2xl mb-3">
                         Thumbnail URL
                       </label>
                       <input
@@ -579,7 +583,7 @@ export function StopForm({
                             e.target.value,
                           )
                         }
-                        className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                        className={hugeInputClass}
                         placeholder="https://..."
                       />
                     </div>
