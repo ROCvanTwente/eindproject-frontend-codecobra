@@ -73,6 +73,11 @@ export const SECTION_META: Array<{
   { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
 ];
 
+const VISIBLE_DASHBOARD_KEYS: SectionKey[] = ["home", "stops", "qr", "floorPlan", "stats", "accounts"];
+const VISIBLE_SECTION_META = SECTION_META.filter((s) =>
+  VISIBLE_DASHBOARD_KEYS.includes(s.key),
+);
+
 export function AdminPanel({
   stops,
   language,
