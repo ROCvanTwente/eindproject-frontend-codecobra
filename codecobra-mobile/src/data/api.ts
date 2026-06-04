@@ -1,4 +1,9 @@
-const API_URL = "http://10.0.2.2:5018/api";
+ import { Platform } from "react-native";
+ 
+ const API_URL =
+   Platform.OS === "android"
+     ? "http://10.0.2.2:5018/api"
+     : "http://localhost:5018/api";
 
 export async function recordScan(qrCode: string) {
   const response = await fetch(`${API_URL}/qrcode/scan`, {
@@ -15,8 +20,6 @@ export async function recordScan(qrCode: string) {
 }
 
 export async function getAllStops() {
-  console.log("Fetching stops from API...");
-  console.log(`API URL: ${API_URL}/stops/all`);
     const response = await fetch(`${API_URL}/stops/all`);
     if (!response.ok) {
         throw new Error("Failed to fetch stops");

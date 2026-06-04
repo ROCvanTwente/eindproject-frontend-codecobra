@@ -6,7 +6,6 @@ import {
   StyleSheet,
   ScrollView,
   SafeAreaView,
-  Dimensions,
   ActivityIndicator,
   useWindowDimensions,
 } from "react-native";
@@ -31,7 +30,7 @@ export function FloorPlanScreen({ navigation, route }: Props) {
   const language: Language = route.params.language;
 
   // useWindowDimensions automatically updates when the phone rotates
-  const { width, height } = useWindowDimensions();
+  const { width } = useWindowDimensions();
 
   const [stopsData, setStopsData] = useState(contextStops ?? []);
   const [loading, setLoading] = useState<boolean>(false);
@@ -64,7 +63,7 @@ export function FloorPlanScreen({ navigation, route }: Props) {
 
   // 2. Dynamic Map Scaling
   // In landscape, 'width' is the long side.
-  const MAP_W = width - 40; 
+  const MAP_W = width - 40;
   const MAP_H = MAP_W * (704 / 1531);
 
   const scaleX = (x: number) => (x / 1531) * MAP_W;
@@ -125,25 +124,31 @@ export function FloorPlanScreen({ navigation, route }: Props) {
           )}
         </View>
 
+        {!loading && positionedStops.length === 0 && (
+          <Text style={{ textAlign: "center", color: "#6b7280", marginTop: 12 }}>
+            {language === "nl" ? "Geen stops met kaartpositie beschikbaar." : "No stops with map positions available."}
+          </Text>
+        )}
+
         {/* Legend */}
         <View style={styles.legendGrid}>
-           {positionedStops.map((stop) => {
-             const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
-             return (
-               <TouchableOpacity
-                 key={stop.id}
-                 style={styles.legendItem}
-                 onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
-               >
-                 <View style={styles.legendBadge}>
-                   <Text style={styles.legendBadgeText}>{stopNumber}</Text>
-                 </View>
-                 <Text style={styles.legendLabel} numberOfLines={1}>
-                   {language === "nl" ? stop.titleNl : stop.titleEn}
-                 </Text>
-               </TouchableOpacity>
-             );
-           })}
+          {positionedStops.map((stop) => {
+            const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
+            return (
+              <TouchableOpacity
+                key={stop.id}
+                style={styles.legendItem}
+                onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
+              >
+                <View style={styles.legendBadge}>
+                  <Text style={styles.legendBadgeText}>{stopNumber}</Text>
+                </View>
+                <Text style={styles.legendLabel} numberOfLines={1}>
+                  {language === "nl" ? stop.titleNl : stop.titleEn}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
         </View>
       </ScrollView>
     </SafeAreaView>
