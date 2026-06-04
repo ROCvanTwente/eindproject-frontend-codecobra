@@ -6,6 +6,7 @@ import { LoginScreen } from "./components/LoginScreen";
 import { RegisterScreen } from "./components/RegisterScreen";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAllTourStops, mapTourStopResponse } from "../services/api";
+import { getCurrentUserInfo } from "../services/authApi";
 
 type View = "login" | "register" | "admin";
 
@@ -53,6 +54,30 @@ export default function App() {
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (!settings.currentSession) return;
+      const currentUser = await getCurrentUserInfo();
+      if (!currentUser || cancelled) return;
+
+      const resolvedRole = currentUser?.isAdmin ? "Admin" : "Editor";
+      if (settings.currentSession.role !== resolvedRole) {
+        handleUpdateSettings({
+          currentSession: {
+            username: settings.currentSession.username,
+            role: resolvedRole,
+          },
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [settings.currentSession?.username]);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
