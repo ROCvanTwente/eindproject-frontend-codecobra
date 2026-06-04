@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { AdminSettings } from "../data/settings";
 import { UserSession } from "../types";
-import { registerUser } from "../../services/authApi";
+import { registerUser, setAccessToken } from "../../services/authApi";
 
 interface RegisterScreenProps {
   settings: AdminSettings;
@@ -60,10 +60,10 @@ export function RegisterScreen({
 
       if (response.ok) {
         if (data?.accessToken) {
-          localStorage.setItem("token", data.accessToken);
+          setAccessToken(data.accessToken);
           const session: UserSession = {
             username: data?.username ?? email,
-            role: data?.role ?? "admin",
+            role: data?.role ?? "Editor",
           };
           onRegister(session);
           navigate("/admin", { replace: true });

@@ -16,7 +16,6 @@ import { check, openSettings, PERMISSIONS, request, RESULTS } from "react-native
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language } from "../types";
-import { recordScan } from "../data/api";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -35,16 +34,11 @@ export function QRScannerScreen({ navigation, route }: Props) {
   const toggleLanguage = () =>
     setLanguage((prev) => (prev === "nl" ? "en" : "nl"));
 
-  const handleBarCodeScanned = async ({ data }: { data: string }) => {
+  const handleBarCodeScanned = ({ data }: { data: string }) => {
     if (scanned) return;
     setScanned(true);
     const stop = stops.find((s) => s.qrCode === data);
     if (stop) {
-      try {
-        await recordScan(data);
-      } catch (error) {
-        console.warn("Scan not recorded:", error);
-      }
       setScanning(false);
       navigation.push("StopDetail", { stopId: stop.id, language });
     } else {
@@ -129,9 +123,7 @@ export function QRScannerScreen({ navigation, route }: Props) {
           onReadCode={
             scanned
               ? undefined
-              : ({ nativeEvent }) => {
-                  void handleBarCodeScanned({ data: nativeEvent.codeStringValue });
-                }
+              : ({ nativeEvent }) => handleBarCodeScanned({ data: nativeEvent.codeStringValue })
           }
           onError={() => {
             setScanning(false);
@@ -210,7 +202,7 @@ export function QRScannerScreen({ navigation, route }: Props) {
                   <Text style={styles.stopIndexText}>{index + 1}</Text>
                 </View>
                 <Text style={styles.stopTitle} numberOfLines={1}>
-                  {language === "nl" ? stop.titleNl : stop.titleEn || stop.qrCodeId}
+                  {stop.title[language] || stop.qrCode}
                 </Text>
                 <Ionicons name="chevron-forward" size={20} color={SECONDARY} />
               </TouchableOpacity>

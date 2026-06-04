@@ -1,50 +1,25 @@
-import { useEffect, useState } from "react";
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { Stop, Language } from "../../types";
 import { SortableList } from "./SortableList";
-import { getAllTourStops, deleteTourStop } from "../../../services/api";
 
 interface Props {
   language: Language;
+  stops: Stop[];
+  onUpdateStops: (stops: Stop[]) => void;
   onEdit: (stop: Stop) => void;
   onCreate: () => void;
   log: (action: string, target: string) => void;
-  onStopsChange?: (stops: Stop[]) => void;
 }
 
 export function SectionStops({
   language,
+  stops,
+  onUpdateStops,
   onEdit,
   onCreate,
   log,
-  onStopsChange,
 }: Props) {
-  const [stops, setStops] = useState<Stop[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-
-  // Fetch all stops on mount
-  useEffect(() => {
-    const fetchStops = async () => {
-      try {
-        setLoading(true);
-        const data = await getAllTourStops();
-        console.log("Fetched stops from API:", data);
-        setStops(data);
-        onStopsChange?.(data);
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : "Failed to fetch stops";
-        console.error("Error fetching stops:", errorMsg);
-        setError(errorMsg);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    fetchStops();
-  }, []);
-
-  const handleDelete = async (stop: Stop) => {
+  const handleDelete = (stop: Stop) => {
     if (
       confirm(
         language === "nl"
@@ -52,17 +27,8 @@ export function SectionStops({
           : "Are you sure you want to delete this stop?",
       )
     ) {
-      try {
-        await deleteTourStop(stop.id);
-        const updatedStops = stops.filter((s) => s.id !== stop.id);
-        setStops(updatedStops);
-        onStopsChange?.(updatedStops);
-        log("delete-stop", stop.titleNl || `#${stop.id}`);
-      } catch (err) {
-        const errorMsg = err instanceof Error ? err.message : "Failed to delete stop";
-        console.error("Error deleting stop:", errorMsg);
-        setError(errorMsg);
-      }
+      onUpdateStops(stops.filter((s) => s.id !== stop.id));
+      log("delete-stop", stop.title.nl || `#${stop.id}`);
     }
   };
 
@@ -71,37 +37,17 @@ export function SectionStops({
     const target = index + delta;
     if (target < 0 || target >= next.length) return;
     [next[index], next[target]] = [next[target], next[index]];
-    setStops(next);
-    onStopsChange?.(next);
+    onUpdateStops(next);
     log(
       "reorder-stop",
-      next[target].titleNl || `#${next[target].id}`,
+      next[target].title.nl || `#${next[target].id}`,
     );
   };
 
   const handleReorder = (next: Stop[]) => {
-    setStops(next);
-    onStopsChange?.(next);
+    onUpdateStops(next);
     log("reorder-stop", "drag-drop");
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-8">
-        <p className="text-gray-600">
-          {language === "nl" ? "Laden..." : "Loading..."}
-        </p>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="bg-red-50 border border-red-200 rounded-lg p-4">
-        <p className="text-red-700">{error}</p>
-      </div>
-    );
-  }
 
   return (
     <div>
@@ -154,17 +100,17 @@ export function SectionStops({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-2 flex-wrap">
                   <span className="bg-[#E30613] text-white px-3 py-1 rounded-full text-sm">
-                    {stop.qrCode.code}
+                    {stop.qrCode}
                   </span>
                   <span className="text-gray-500 text-sm">
                     #{index + 1}
                   </span>
                 </div>
                 <h3 className="text-xl mb-1 truncate">
-                  {language === "nl" ? stop.titleNl : stop.titleEn}
+                  {stop.title[language]}
                 </h3>
                 <p className="text-gray-600 text-sm mb-3">
-                  {language === "nl" ? stop.locationNl : stop.locationEn}
+                  {stop.location[language]}
                 </p>
                 <div className="flex gap-2">
                   <button

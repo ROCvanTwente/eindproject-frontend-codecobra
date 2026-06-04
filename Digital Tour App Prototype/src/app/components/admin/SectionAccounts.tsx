@@ -35,6 +35,7 @@ export function SectionAccounts({
   const [isDeleting, setIsDeleting] = useState(false);
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
+  const [successModal, setSuccessModal] = useState<string | null>(null);
 
   useEffect(() => {
     loadAccounts();
@@ -103,6 +104,13 @@ export function SectionAccounts({
         { action: "create-account", target: form.username },
       );
       await loadAccounts();
+      setSuccessModal(
+      language === "nl"
+          ? `Account ${form.username} is toegevoegd.`
+          : `Account ${form.username} has been added.`
+      );
+
+  
       setForm({
         username: "",
         password: "",
@@ -264,8 +272,8 @@ export function SectionAccounts({
                 }
                 className="px-3 py-2 rounded-lg border-2 border-gray-300"
               >
-                <option value="admin">Admin</option>
-                <option value="editor">Editor</option>
+                <option value="Admin">Admin</option>
+                <option value="Editor">Editor</option>
               </select>
               <button
                 onClick={create}
@@ -322,7 +330,15 @@ export function SectionAccounts({
           ))
         )}
       </div>
-
+        {successModal && (
+        <AlertModal
+        language={language}
+        title={language === "nl" ? "Gelukt" : "Success"}
+        message={successModal}
+        variant="success"
+        onClose={() => setSuccessModal(null)}
+        />
+        )}
       {errorModal && (
         <AlertModal
           language={language}

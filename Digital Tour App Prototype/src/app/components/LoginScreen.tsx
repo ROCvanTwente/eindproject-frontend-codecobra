@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Link } from "react-router-dom";
 import { AdminSettings, addHistory } from "../data/settings";
 import { Language, UserSession } from "../types";
-import { loginUser, setSessionData } from "../../services/authApi";
+import { loginUser } from "../../services/authApi";
 
 interface LoginScreenProps {
   settings: AdminSettings;
@@ -26,28 +26,20 @@ export function LoginScreen({
     setError('');
 
     try {
-      const response = await loginUser(username, password);
+            const result = await loginUser(username, password);
 
-      if (response.ok) {
-        // Try to read token and optional user info from response.
-        let data: any = {};
-        try {
-          data = await response.json();
-        } catch {}
-        if (data?.accessToken) {
-          localStorage.setItem('token', data.accessToken);
-        }
+            if (result.ok) {
+                const data: any = result.data ?? {};
+                if (!data?.accessToken) {
+                    setError("Inloggen gelukt, maar geen toegangstoken ontvangen.");
+                    return;
+                }
 
         // Build a UserSession to pass back to App. Prefer server-provided info if available.
         const session = {
           username: data?.username ?? username,
-          role: data?.role ?? 'admin',
+                    role: data?.role ?? "Editor",
         };
-
-        console.log("Creating session in LoginScreen:", session);
-        
-        // Store session in localStorage with role
-        setSessionData(session.username, session.role);
 
         // Notify parent app that login succeeded so it can switch to the admin view.
         onLogin(session);
