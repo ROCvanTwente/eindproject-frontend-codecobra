@@ -47,6 +47,8 @@ export function getAuthHeaders(): Record<string, string> {
 }
 
 export async function loginUser(email: string, password: string) {
+  const identifier = email.trim();
+
   const response = await fetch(
     buildUrl("/login?useCookies=false&useSessionCookies=false"),
     {
@@ -54,7 +56,7 @@ export async function loginUser(email: string, password: string) {
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: identifier, password }),
     },
   );
 
@@ -94,13 +96,16 @@ export function clearSessionData() {
   console.log("Session cleared");
 }
 
-export async function registerUser(email: string, password: string) {
+export async function registerUser(username: string, password: string) {
+  const normalizedUsername = username.trim().toLowerCase();
+  const generatedEmail = `${normalizedUsername}@codecobra.local`;
+
   return fetch(buildUrl("/register?useCookies=false&useSessionCookies=false"), {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ email, password }),
+    body: JSON.stringify({ email: generatedEmail, password }),
   });
 }
 

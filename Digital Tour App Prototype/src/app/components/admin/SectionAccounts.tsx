@@ -6,7 +6,12 @@ import {
   AdminAccount,
 } from "../../data/settings";
 import { AlertModal, ConfirmModal } from "./AdminModal";
-import { getAllAccounts, createAccount, deleteAccount } from "../../../services/api";
+import {
+  getAllAccounts,
+  createAccount,
+  deleteAccount,
+  updateAccountRole,
+} from "../../../services/api";
 
 interface Props {
   language: Language;
@@ -26,7 +31,6 @@ export function SectionAccounts({
   const [form, setForm] = useState({
     username: "",
     password: "",
-    email: "",
     role: "Editor" as AdminAccount["role"],
   });
   const [errorModal, setErrorModal] = useState<string | null>(null);
@@ -37,6 +41,8 @@ export function SectionAccounts({
   const [usernameError, setUsernameError] = useState<string | null>(null);
   const [showForm, setShowForm] = useState(false);
   const [successModal, setSuccessModal] = useState<string | null>(null);
+  const [roleDrafts, setRoleDrafts] = useState<Record<string, AdminAccount["role"]>>({});
+  const [updatingRoleId, setUpdatingRoleId] = useState<string | null>(null);
 
   useEffect(() => {
     loadAccounts();
@@ -58,6 +64,12 @@ export function SectionAccounts({
         ? response.map(normalizeAccount)
         : [];
       setAccounts(loadedAccounts);
+      setRoleDrafts(
+        loadedAccounts.reduce((acc, item) => {
+          acc[item.id] = item.role;
+          return acc;
+        }, {} as Record<string, AdminAccount["role"]>),
+      );
       onChange({ accounts: loadedAccounts }, { action: "load-accounts", target: "all" });
     } catch (err) {
       setErrorModal(
@@ -73,7 +85,7 @@ export function SectionAccounts({
   const create = async () => {
     setUsernameError(null);
 
-    if (!form.username.trim() || !form.password.trim() || !form.email.trim()) {
+    if (!form.username.trim() || !form.password.trim()) {
       setErrorModal(
         language === "nl"
           ? "Vul alle velden in"
@@ -104,7 +116,6 @@ export function SectionAccounts({
       setIsCreating(true);
       await createAccount(
         form.username,
-        form.email,
         form.password,
         form.role
       );
@@ -123,7 +134,6 @@ export function SectionAccounts({
       setForm({
         username: "",
         password: "",
-        email: "",
         role: "Editor",
       });
       setShowForm(false);
@@ -171,6 +181,55 @@ export function SectionAccounts({
       return;
     }
     setConfirmDelete(acc);
+  };
+
+  const saveRole = async (acc: AdminAccount) => {
+    const nextRole = roleDrafts[acc.id] ?? acc.role;
+    if (nextRole === acc.role) {
+      return;
+    }
+
+    if (acc.username === settings.currentSession?.username) {
+      setErrorModal(
+        language === "nl"
+          ? "Je kunt je eigen rol niet wijzigen"
+          : "You cannot change your own role",
+      );
+      return;
+    }
+
+    const adminCount = accounts.filter((a) => a.role === "Admin").length;
+    if (acc.role === "Admin" && nextRole !== "Admin" && adminCount <= 1) {
+      setErrorModal(
+        language === "nl"
+          ? "De laatste admin kan niet gedegradeerd worden"
+          : "The last admin cannot be downgraded",
+      );
+      return;
+    }
+
+    try {
+      setUpdatingRoleId(acc.id);
+      await updateAccountRole(acc.id, nextRole);
+      onChange(
+        {},
+        { action: "update-role", target: `${acc.username} -> ${nextRole}` },
+      );
+      await loadAccounts();
+      setSuccessModal(
+        language === "nl"
+          ? `Rol van ${acc.username} aangepast naar ${nextRole}.`
+          : `Role for ${acc.username} updated to ${nextRole}.`,
+      );
+    } catch (err) {
+      setErrorModal(
+        language === "nl"
+          ? "Fout bij het aanpassen van rol"
+          : "Failed to update role",
+      );
+    } finally {
+      setUpdatingRoleId(null);
+    }
   };
 
   return (
@@ -263,16 +322,6 @@ export function SectionAccounts({
               )}
             </div>
 
-            <input
-              type="email"
-              placeholder={language === "nl" ? "E-mail" : "Email"}
-              value={form.email}
-              onChange={(e) =>
-                setForm({ ...form, email: e.target.value })
-              }
-              className="w-full px-3 py-2 rounded-lg border-2 border-gray-300"
-            />
-
             <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
               <select
                 value={form.role}
@@ -325,10 +374,49 @@ export function SectionAccounts({
             <div className="flex-1">
               <p className="text-base">{acc.username}</p>
               <p className="text-xs text-gray-500">
-                {acc.role}
-                {acc.email ? ` • ${acc.email}` : ""}
+                {acc.email ?? ""}
               </p>
             </div>
+
+            <div className="flex items-center gap-2">
+              <select
+                value={roleDrafts[acc.id] ?? acc.role}
+                onChange={(e) =>
+                  setRoleDrafts((prev) => ({
+                    ...prev,
+                    [acc.id]: e.target.value as AdminAccount["role"],
+                  }))
+                }
+                disabled={
+                  updatingRoleId === acc.id ||
+                  acc.username === settings.currentSession?.username
+                }
+                className="px-3 py-2 rounded-lg border-2 border-gray-300 disabled:opacity-60"
+              >
+                <option value="Admin">Admin</option>
+                <option value="Editor">Editor</option>
+              </select>
+
+              <button
+                type="button"
+                onClick={() => saveRole(acc)}
+                disabled={
+                  updatingRoleId === acc.id ||
+                  (roleDrafts[acc.id] ?? acc.role) === acc.role ||
+                  acc.username === settings.currentSession?.username
+                }
+                className="bg-[#0066B3] text-white px-3 py-2 rounded-lg hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {updatingRoleId === acc.id
+                  ? language === "nl"
+                    ? "Opslaan..."
+                    : "Saving..."
+                  : language === "nl"
+                    ? "Rol opslaan"
+                    : "Save role"}
+              </button>
+            </div>
+
             <button
               type="button"
               onClick={() => remove(acc)}

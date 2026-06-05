@@ -15,10 +15,16 @@ export function LoginScreen({
   onLogin,
   onBack,
 }: LoginScreenProps) {
-  const [username, setUsername] = useState('');
+    const [username, setUsername] = useState("");
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+    const fillAdminCredentials = () => {
+        setUsername("admin");
+        setPassword("Test-123");
+        setError("");
+    };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -39,14 +45,19 @@ export function LoginScreen({
 
         // Build a UserSession to pass back to App. Prefer server-provided info if available.
         const session = {
-          username: data?.username ?? username,
+                    username: currentUser?.username ?? data?.username ?? username,
                     role: currentUser?.isAdmin ? "Admin" : data?.role ?? "Editor",
         };
 
         // Notify parent app that login succeeded so it can switch to the admin view.
         onLogin(session);
       } else {
-        setError('Login failed. Please check your credentials.');
+                const apiError =
+                    result.data?.detail ??
+                    result.data?.title ??
+                    result.data?.message ??
+                    'Login failed. Please check your credentials.';
+                setError(apiError);
       }
     } catch (err) {
       setError('An error occurred. Please try again later.');
@@ -73,6 +84,19 @@ export function LoginScreen({
                         </div>
                     </div>
 
+                        <div className="mb-6 rounded-lg border border-blue-200 bg-blue-50 p-4">
+                            <p className="text-sm font-semibold text-blue-900">Test admin login</p>
+                            <p className="text-sm text-blue-900">Naam: admin</p>
+                            <p className="text-sm text-blue-900">Wachtwoord: Test-123</p>
+                            <button
+                                type="button"
+                                onClick={fillAdminCredentials}
+                                className="mt-3 inline-flex items-center rounded-md bg-[#006cb7] px-3 py-2 text-sm font-medium text-white hover:bg-gray-800 transition-colors"
+                            >
+                                Vul automatisch in
+                            </button>
+                        </div>
+
                     {/* Error Message */}
                     {error && (
                         <div className="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg">
@@ -85,7 +109,7 @@ export function LoginScreen({
                         {/* Username Input */}
                         <div>
                             <label htmlFor="username" className="block text-sm font-semibold text-gray-900 mb-2">
-                                Username
+                                Naam
                             </label>
                             <input
                                 type="text"
@@ -93,7 +117,8 @@ export function LoginScreen({
                                 value={username}
                                 onChange={(e) => setUsername(e.target.value)}
                                 required
-                                placeholder="your_username"
+                                placeholder="admin"
+                                autoComplete="username"
                                 className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
                             />
                         </div>
@@ -110,6 +135,7 @@ export function LoginScreen({
                                 onChange={(e) => setPassword(e.target.value)}
                                 required
                                 placeholder="••••••••"
+                                autoComplete="current-password"
                                 className="w-full px-4 py-3 bg-white border border-gray-300 rounded-lg text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-black focus:border-transparent transition-all duration-200"
                             />
                         </div>
@@ -129,18 +155,7 @@ export function LoginScreen({
                         <div className="absolute inset-0 flex items-center">
                             <div className="w-full border-t border-gray-300"></div>
                         </div>
-                        <div className="relative flex justify-center text-sm">
-                            <span className="px-2 bg-white text-gray-600">New to us?</span>
-                        </div>
                     </div>
-
-                    {/* Register Link */}
-                    <Link
-                        to="/register"
-                        className="block w-full text-center px-4 py-3 bg-gray-100 border border-gray-300 text-gray-900 font-semibold rounded-lg hover:bg-gray-200 focus:outline-none focus:ring-2 focus:ring-black transition-all duration-200"
-                    >
-                        Create an Account
-                    </Link>
                 </div>
 
                 {/* Footer Text */}
