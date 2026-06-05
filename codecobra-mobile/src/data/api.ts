@@ -1,9 +1,11 @@
  import { Platform } from "react-native";
 
- const API_URL =
-   Platform.OS === "android"
-     ? "http://10.0.2.2:5018/api"
-     : "http://localhost:5018/api";
+//  const API_URL =
+//    Platform.OS === "android"
+//      ? "http://10.0.2.2:5018/api"
+//      : "http://localhost:5018/api";
+
+const API_URL = "https://digitalworkplacetestapi.runasp.net/api";
 
 export async function recordScan(qrCode: string) {
   const response = await fetch(`${API_URL}/qrcode/scan`, {

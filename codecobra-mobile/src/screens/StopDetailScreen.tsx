@@ -102,17 +102,17 @@ export function StopDetailScreen({ navigation, route }: Props) {
     const onFinish = () => setIsSpeaking(false);
     const onCancel = () => setIsSpeaking(false);
 
-    Tts.addEventListener("tts-start", onStart);
-    Tts.addEventListener("tts-finish", onFinish);
-    Tts.addEventListener("tts-cancel", onCancel);
+    const startSubscription = Tts.addEventListener("tts-start", onStart) as any;
+    const finishSubscription = Tts.addEventListener("tts-finish", onFinish) as any;
+    const cancelSubscription = Tts.addEventListener("tts-cancel", onCancel) as any;
 
     return () => {
       Tts.stop();
-      Tts.removeEventListener("tts-start", onStart);
-      Tts.removeEventListener("tts-finish", onFinish);
-      Tts.removeEventListener("tts-cancel", onCancel);
+      startSubscription.remove();
+      finishSubscription.remove();
+      cancelSubscription.remove();
     };
-  }, []);
+  }, [setupTts]);
 
   useEffect(() => {
     async function fetchStopData() {
