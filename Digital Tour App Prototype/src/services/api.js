@@ -184,14 +184,14 @@ export async function getAllAccounts() {
   return await response.json();
 }
 
-export async function createAccount(username, email, password, role) {
+export async function createAccount(username, password, role) {
   const response = await fetch(`${API_BASE_URL}/user/add`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ username, email, password, role }),
+    body: JSON.stringify({ username, password, role }),
   });
 
   if (!response.ok) {
@@ -213,6 +213,24 @@ export async function deleteAccount(id) {
     const errorText = await response.text();
     throw new Error(errorText || "Failed to delete account");
   }
+  return await response.json();
+}
+
+export async function updateAccountRole(id, role) {
+  const response = await fetch(`${API_BASE_URL}/user/update-role/${id}`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ newRole: role }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to update account role");
+  }
+
   return await response.json();
 }
 
