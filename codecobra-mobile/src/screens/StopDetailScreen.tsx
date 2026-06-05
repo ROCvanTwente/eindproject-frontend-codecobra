@@ -90,7 +90,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
       // Iets lagere pitch maakt het vaak natuurlijker
       await Tts.setDucking(true);
     } catch (e) {
-      console.log("TTS Setup error:", e);
+      console.error("TTS Setup error:", e);
     }
   }, [language]);
 
