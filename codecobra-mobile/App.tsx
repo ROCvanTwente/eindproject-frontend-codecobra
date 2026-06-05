@@ -25,7 +25,7 @@ export default function App() {
   return (
     <AppProvider>
       <NavigationContainer>
-        <StatusBar barStyle="light-content" />
+        <StatusBar hidden={true} />
         <Stack.Navigator
           initialRouteName="Start"
           screenOptions={{ headerShown: false, animation: "slide_from_right" }}

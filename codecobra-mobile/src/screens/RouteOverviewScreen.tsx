@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useEffect, useState } from "react";
 import {
   View,
   Text,
@@ -6,6 +6,7 @@ import {
   StyleSheet,
   FlatList,
   SafeAreaView,
+  ActivityIndicator,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -13,6 +14,7 @@ import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Stop } from "../types";
 import { Language } from "../types";
+import { getAllStops } from "../data/api";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -20,7 +22,10 @@ const SECONDARY = "#0066B3";
 type Props = NativeStackScreenProps<RootStackParamList, "RouteOverview">;
 
 export function RouteOverviewScreen({ navigation, route }: Props) {
-  const { stops } = useAppContext();
+  const { stops: contextStops } = useAppContext();
+  const [stops, setStops] = useState<Stop[]>(contextStops ?? []);
+  const [loading, setLoading] = useState<boolean>(false);
+  const [fetchError, setFetchError] = useState<string | null>(null);
   const language: Language = route.params.language;
 
   const totalDuration = useMemo(
@@ -28,6 +33,27 @@ export function RouteOverviewScreen({ navigation, route }: Props) {
     [stops],
   );
 
+  useEffect(() => {
+    let mounted = true;
+    const load = async () => {
+      setLoading(true);
+      setFetchError(null);
+      try {
+        const data = await getAllStops();
+        if (mounted && Array.isArray(data)) setStops(data);
+      } catch (error) {
+        console.error("Error fetching stops:", error);
+        if (mounted) setFetchError(String(error));
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+    load();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+  
   const renderStop = ({ item, index }: { item: Stop; index: number }) => (
     <TouchableOpacity
       style={styles.card}
@@ -42,16 +68,16 @@ export function RouteOverviewScreen({ navigation, route }: Props) {
         </View>
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={1}>
-            {item.title[language]}
+            {language === "nl" ? item.titleNl : item.titleEn}
           </Text>
           <View style={styles.cardLocationRow}>
             <Ionicons name="location-outline" size={14} color={SECONDARY} />
             <Text style={styles.cardLocation} numberOfLines={1}>
-              {item.location[language]}
+              {language === "nl" ? item.locationNl : item.locationEn}
             </Text>
           </View>
           <Text style={styles.cardDesc} numberOfLines={2}>
-            {item.description[language]}
+            {language === "nl" ? item.descriptionNl : item.descriptionEn}
           </Text>
           {item.estimatedDuration > 0 && (
             <View style={styles.cardDurationRow}>
@@ -85,8 +111,13 @@ export function RouteOverviewScreen({ navigation, route }: Props) {
         </View>
       </View>
 
-      <FlatList
-        data={stops}
+      {loading ? (
+        <View style={styles.center}>
+          <ActivityIndicator size="large" color={PRIMARY} />
+        </View>
+      ) : (
+        <FlatList
+          data={stops}
         keyExtractor={(s) => String(s.id)}
         renderItem={renderStop}
         contentContainerStyle={styles.list}
@@ -111,8 +142,9 @@ export function RouteOverviewScreen({ navigation, route }: Props) {
             </Text>
           </View>
         }
-        ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
-      />
+          ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
+        />
+      )}
     </SafeAreaView>
   );
 }
@@ -197,4 +229,5 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   endCardText: { fontSize: 18, color: "#166534" },
+  center: { flex: 1, alignItems: "center", justifyContent: "center" },
 });
