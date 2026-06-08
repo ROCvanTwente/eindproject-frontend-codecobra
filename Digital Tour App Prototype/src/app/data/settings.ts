@@ -7,7 +7,7 @@ export type SpeedKey = "slow" | "normal" | "fast";
 export type VoiceGender = "female" | "male";
 
 export interface AdminAccount {
-  id: number;
+  id: string;
   username: string;
   password: string; // prototype only — not hashed
   role: "Admin" | "Editor";
@@ -77,7 +77,7 @@ const DEFAULTS: AdminSettings = {
   theme: { primary: "#E30613", secondary: "#0066B3" },
   accounts: [
     {
-      id: 1,
+      id: "1",
       username: "admin",
       password: "gieterij",
       role: "Admin",

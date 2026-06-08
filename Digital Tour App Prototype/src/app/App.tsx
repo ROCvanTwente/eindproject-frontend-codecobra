@@ -3,37 +3,21 @@ import { AdminSettings, loadSettings, saveSettings } from "./data/settings";
 import { Language, Stop, UserSession } from "./types";
 import { AdminPanel } from "./components/AdminPanel";
 import { LoginScreen } from "./components/LoginScreen";
-import { RegisterScreen } from "./components/RegisterScreen";
 import { useLocation, useNavigate } from "react-router-dom";
+import { getAllTourStops, mapTourStopResponse } from "../services/api";
+import {
+  clearSessionData,
+  clearTokens,
+  getCurrentUserInfo,
+} from "../services/authApi";
 
-const STOPS_KEY = "gieterij-stops-v2";
-const loadStops = (): Stop[] => {
-  if (typeof window === "undefined") return [];
-  try {
-    window.localStorage.removeItem("gieterij-stops");
-  } catch {}
-  try {
-    const raw = window.localStorage.getItem(STOPS_KEY);
-    if (!raw) return [];
-    const parsed: Stop[] = JSON.parse(raw);
-    if (!Array.isArray(parsed)) return [];
-    return parsed;
-  } catch {
-    return [];
-  }
-};
-const saveStops = (stops: Stop[]) => {
-  try {
-    window.localStorage.setItem(STOPS_KEY, JSON.stringify(stops));
-  } catch {}
-};
 
 type View = "login" | "register" | "admin";
 
 export default function App() {
   const [language, setLanguage] = useState<Language>("nl");
   const [view, setView] = useState<View>("login");
-  const [stops, setStops] = useState<Stop[]>(() => loadStops());
+  const [stops, setStops] = useState<Stop[]>([]);
   const [settings, setSettings] = useState<AdminSettings>(() =>
     loadSettings(),
   );
@@ -56,8 +40,57 @@ export default function App() {
   };
 
   useEffect(() => {
-    saveStops(stops);
-  }, [stops]);
+    let cancelled = false;
+
+    (async () => {
+      try {
+        const response = await getAllTourStops();
+        if (cancelled) return;
+        setStops(Array.isArray(response) ? response.map(mapTourStopResponse) : []);
+      } catch {
+        if (!cancelled) {
+          setStops([]);
+        }
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    (async () => {
+      if (!settings.currentSession) return;
+      const currentUser = await getCurrentUserInfo();
+      if (cancelled) return;
+
+      if (!currentUser) {
+        clearTokens();
+        clearSessionData();
+        handleUpdateSettings({ currentSession: null });
+        setView("login");
+        navigate("/login", { replace: true });
+        return;
+      }
+
+      const resolvedRole = currentUser?.isAdmin ? "Admin" : "Editor";
+      if (settings.currentSession.role !== resolvedRole) {
+        handleUpdateSettings({
+          currentSession: {
+            username: settings.currentSession.username,
+            role: resolvedRole,
+          },
+        });
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [navigate, settings.currentSession?.username]);
 
   useEffect(() => {
     document.documentElement.style.setProperty(
@@ -76,11 +109,6 @@ export default function App() {
   }, [view]);
 
   useEffect(() => {
-    if (location.pathname === "/register") {
-      setView("register");
-      return;
-    }
-
     if (location.pathname === "/admin") {
       setView("admin");
       return;
@@ -92,11 +120,6 @@ export default function App() {
   const goToLogin = () => {
     setView("login");
     navigate("/login", { replace: true });
-  };
-
-  const goToRegister = () => {
-    setView("register");
-    navigate("/register", { replace: true });
   };
 
   const goToAdmin = (session: UserSession) => {
@@ -121,17 +144,6 @@ export default function App() {
     );
   }
 
-  if (view === "register") {
-    return (
-      <RegisterScreen
-        settings={settings}
-        onRegister={(session: UserSession) => {
-          goToAdmin(session);
-        }}
-        onBack={goToLogin}
-      />
-    );
-  }
 
   if (view === "admin") {
     if (!settings.currentSession) {
