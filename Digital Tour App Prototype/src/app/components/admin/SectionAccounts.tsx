@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { Trash2, UserPlus, Loader2 } from "lucide-react";
+import { Trash2, UserPlus, Loader2, Mail } from "lucide-react";
 import { Language } from "../../types";
 import {
   AdminSettings,
@@ -31,8 +31,10 @@ export function SectionAccounts({
   const [form, setForm] = useState({
     username: "",
     password: "",
+    email: "",
     role: "Editor" as AdminAccount["role"],
   });
+  const [resendModal, setResendModal] = useState<{ account: AdminAccount; password: string } | null>(null);
   const [errorModal, setErrorModal] = useState<string | null>(null);
   const [confirmDelete, setConfirmDelete] = useState<AdminAccount | null>(null);
   const [isLoadingAccounts, setIsLoadingAccounts] = useState(false);
@@ -47,6 +49,18 @@ export function SectionAccounts({
   useEffect(() => {
     loadAccounts();
   }, []);
+
+  const openMailto = (email: string, username: string, password: string) => {
+    const subject = encodeURIComponent(
+      language === "nl" ? "Uw inloggegevens" : "Your login credentials"
+    );
+    const body = encodeURIComponent(
+      language === "nl"
+        ? `Goedendag,\n\nHier zijn uw inloggegevens voor het beheerpaneel:\n\nGebruikersnaam: ${username}\nWachtwoord: ${password}\n\nMet vriendelijke groet`
+        : `Hello,\n\nHere are your login credentials for the admin panel:\n\nUsername: ${username}\nPassword: ${password}\n\nKind regards`
+    );
+    window.open(`mailto:${email}?subject=${subject}&body=${body}`);
+  };
 
   const normalizeAccount = (account: any): AdminAccount => ({
     id: String(account.id ?? account.Id ?? ""),
@@ -85,11 +99,11 @@ export function SectionAccounts({
   const create = async () => {
     setUsernameError(null);
 
-    if (!form.username.trim() || !form.password.trim()) {
+    if (!form.username.trim() || !form.password.trim() || !form.email.trim()) {
       setErrorModal(
         language === "nl"
-          ? "Vul alle velden in"
-          : "Fill in all fields",
+          ? "Vul alle velden in (inclusief e-mailadres)"
+          : "Fill in all fields (including email address)",
       );
       return;
     }
@@ -117,23 +131,29 @@ export function SectionAccounts({
       await createAccount(
         form.username,
         form.password,
-        form.role
+        form.role,
+        form.email || undefined
       );
       onChange(
         {},
         { action: "create-account", target: form.username },
       );
       await loadAccounts();
+
+      if (form.email.trim()) {
+        openMailto(form.email.trim(), form.username, form.password);
+      }
+
       setSuccessModal(
-      language === "nl"
-          ? `Account ${form.username} is toegevoegd.`
-          : `Account ${form.username} has been added.`
+        language === "nl"
+          ? `Account ${form.username} is toegevoegd.${form.email.trim() ? " Uw mail-app is geopend om de inloggegevens te versturen." : ""}`
+          : `Account ${form.username} has been added.${form.email.trim() ? " Your mail app has been opened to send the credentials." : ""}`
       );
 
-  
       setForm({
         username: "",
         password: "",
+        email: "",
         role: "Editor",
       });
       setShowForm(false);
@@ -286,6 +306,23 @@ export function SectionAccounts({
 
             <div>
               <input
+                type="email"
+                placeholder={
+                  language === "nl" ? "E-mailadres (verplicht)" : "Email address (required)"
+                }
+                value={form.email}
+                onChange={(e) => setForm({ ...form, email: e.target.value })}
+                className="w-full px-3 py-2 rounded-lg border-2 border-gray-300"
+              />
+              <p className="text-xs text-gray-500 mt-1">
+                {language === "nl"
+                  ? "De inloggegevens worden via uw mail-app verstuurd naar dit adres."
+                  : "The credentials will be sent to this address via your mail app."}
+              </p>
+            </div>
+
+            <div>
+              <input
                 type="password"
                 placeholder={
                   language === "nl" ? "Wachtwoord" : "Password"
@@ -419,6 +456,16 @@ export function SectionAccounts({
 
             <button
               type="button"
+              title={language === "nl" ? "Inloggegevens opnieuw versturen" : "Resend credentials"}
+              onClick={() => setResendModal({ account: acc, password: "" })}
+              className="text-blue-600 hover:bg-blue-50 hover:cursor-pointer p-2 rounded-lg"
+              aria-label="Resend credentials"
+            >
+              <Mail className="w-5 h-5" />
+            </button>
+
+            <button
+              type="button"
               onClick={() => remove(acc)}
               disabled={isDeleting || acc.username === settings.currentSession?.username}
               className="text-red-600 hover:bg-red-50 hover:cursor-pointer p-2 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
@@ -430,6 +477,71 @@ export function SectionAccounts({
           ))
         )}
       </div>
+      {resendModal && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-2xl shadow-xl p-6 w-full max-w-sm mx-4">
+            <h3 className="text-lg font-semibold mb-1">
+              {language === "nl" ? "Inloggegevens opnieuw versturen" : "Resend credentials"}
+            </h3>
+            <p className="text-sm text-gray-500 mb-4">
+              {language === "nl"
+                ? `Verstuur inloggegevens naar ${resendModal.account.email || "(geen e-mail bekend)"}`
+                : `Send credentials to ${resendModal.account.email || "(no email known)"}`}
+            </p>
+            {!resendModal.account.email && (
+              <input
+                type="email"
+                placeholder={language === "nl" ? "E-mailadres" : "Email address"}
+                value={resendModal.account.email ?? ""}
+                onChange={(e) =>
+                  setResendModal((prev) =>
+                    prev ? { ...prev, account: { ...prev.account, email: e.target.value } } : prev
+                  )
+                }
+                className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 mb-3"
+              />
+            )}
+            <input
+              type="password"
+              placeholder={language === "nl" ? "Wachtwoord om te versturen" : "Password to send"}
+              value={resendModal.password}
+              onChange={(e) =>
+                setResendModal((prev) => prev ? { ...prev, password: e.target.value } : prev)
+              }
+              className="w-full px-3 py-2 rounded-lg border-2 border-gray-300 mb-4"
+            />
+            <div className="flex gap-2 justify-end">
+              <button
+                onClick={() => setResendModal(null)}
+                className="px-4 py-2 rounded-lg border-2 border-gray-200 text-gray-700 hover:bg-gray-50"
+              >
+                {language === "nl" ? "Annuleren" : "Cancel"}
+              </button>
+              <button
+                onClick={() => {
+                  const email = resendModal.account.email?.trim();
+                  const password = resendModal.password.trim();
+                  if (!email) {
+                    setErrorModal(language === "nl" ? "Geen e-mailadres bekend" : "No email address known");
+                    return;
+                  }
+                  if (!password) {
+                    setErrorModal(language === "nl" ? "Vul een wachtwoord in" : "Enter a password");
+                    return;
+                  }
+                  openMailto(email, resendModal.account.username, password);
+                  setResendModal(null);
+                }}
+                className="bg-[#0066B3] text-white px-4 py-2 rounded-lg hover:opacity-90 flex items-center gap-2"
+              >
+                <Mail className="w-4 h-4" />
+                {language === "nl" ? "Openen in mail-app" : "Open in mail app"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
         {successModal && (
         <AlertModal
         language={language}

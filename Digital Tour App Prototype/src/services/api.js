@@ -184,14 +184,14 @@ export async function getAllAccounts() {
   return await response.json();
 }
 
-export async function createAccount(username, password, role) {
+export async function createAccount(username, password, role, email) {
   const response = await fetch(`${API_BASE_URL}/user/add`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ username, password, role }),
+    body: JSON.stringify({ username, password, role, email: email || undefined }),
   });
 
   if (!response.ok) {
