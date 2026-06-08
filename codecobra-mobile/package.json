@@ -5,6 +5,7 @@
   "scripts": {
     "start": "react-native start",
     "android": "react-native run-android",
+    "generate-grid": "node ./scripts/generate-grid.js",
     "ios": "react-native run-ios",
     "typecheck": "tsc --noEmit"
   },
@@ -39,7 +40,8 @@
     "@react-native/metro-config": "0.85.3",
     "@react-native/typescript-config": "0.85.3",
     "@types/react": "^19.2.0",
-    "typescript": "^5.8.3"
+    "typescript": "^5.8.3",
+    "jimp": "^0.22.9"
   },
   "engines": {
     "node": ">=20.0.0"
