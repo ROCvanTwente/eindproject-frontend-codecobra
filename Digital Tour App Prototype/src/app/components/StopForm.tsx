@@ -1,6 +1,8 @@
 import { useRef, useState } from "react";
 import { Stop, Language } from "../types";
 import plattegrondImg from "../../imports/PlattegrondGieterijBeganegrondV2.0.png";
+import { ArrowLeft, Film, Image as ImageIcon, Upload } from "lucide-react";
+import { resolveMediaUrl, uploadMedia } from "../../services/api";
 
 const MAP_W = 1528;
 const MAP_H = 704;
@@ -20,8 +22,13 @@ export function StopForm({
   onCancel,
   isCreating,
 }: StopFormProps) {
+  const hugeInputClass =
+    "w-full border-2 border-gray-300 rounded-lg p-6 text-2xl leading-tight focus:border-[#0066B3] focus:outline-none";
+  const hugeTextAreaClass = `${hugeInputClass} min-h-[320px] leading-relaxed`;
+
   const [formData, setFormData] = useState<Stop>(stop);
   const svgRef = useRef<SVGSVGElement | null>(null);
+  const [isMediaDragging, setIsMediaDragging] = useState(false);
 
   const handleMapClick = (e: React.MouseEvent<SVGSVGElement>) => {
     const svg = svgRef.current;
@@ -79,6 +86,48 @@ export function StopForm({
     });
   };
 
+  const setUploadedMedia = async (file: File) => {
+    if (!file.type.startsWith("image/") && !file.type.startsWith("video/")) {
+      alert(
+        language === "nl"
+          ? "Kies een foto of video."
+          : "Choose a photo or video.",
+      );
+      return;
+    }
+
+    try {
+      const uploaded = await uploadMedia(file);
+      const mediaUrl = uploaded?.filePath ?? uploaded?.fileUrl ?? "";
+      if (!mediaUrl) {
+        throw new Error("No media path returned by API");
+      }
+      setFormData({
+        ...formData,
+        media: {
+          type: file.type.startsWith("video/") ? "video" : "image",
+          url: resolveMediaUrl(mediaUrl),
+        },
+      });
+    } catch (error) {
+      console.error("Failed to upload media in stop form", error);
+      alert(
+        language === "nl"
+          ? "Uploaden van media is mislukt."
+          : "Uploading media failed.",
+      );
+    }
+  };
+
+  const handleMediaDrop = async (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsMediaDragging(false);
+    const file = e.dataTransfer.files[0];
+    if (file) {
+      await setUploadedMedia(file);
+    }
+  };
+
   const removeMedia = () => {
     setFormData({ ...formData, media: undefined });
   };
@@ -87,8 +136,17 @@ export function StopForm({
     <div className="min-h-screen bg-white">
       {/* Header */}
       <div className="bg-[#0066B3] text-white p-6 sticky top-0 z-10 shadow-lg">
-        <div className="max-w-5xl mx-auto">
-          <h1 className="text-2xl">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-4">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="inline-flex items-center gap-2 rounded-lg bg-white/20 px-3 py-2 text-sm hover:bg-white/30"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            <span>{language === "nl" ? "Terug" : "Back"}</span>
+          </button>
+
+          <h1 className="text-2xl text-right">
             {isCreating
               ? language === "nl"
                 ? "Nieuwe Stop"
@@ -108,7 +166,7 @@ export function StopForm({
         <div className="space-y-8">
           {/* QR Code */}
           <div>
-            <label className="block text-xl mb-3">
+            <label className="block text-2xl mb-4">
               {language === "nl" ? "QR Code" : "QR Code"}
             </label>
             <input
@@ -117,7 +175,7 @@ export function StopForm({
               onChange={(e) =>
                 updateField("qrCode", e.target.value)
               }
-              className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+              className={hugeInputClass}
               placeholder="GIETERIJ-001"
               required
             />
@@ -126,7 +184,7 @@ export function StopForm({
           {/* Location NL/EN */}
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Locatie (Nederlands)"
                   : "Location (Dutch)"}
@@ -141,13 +199,13 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                className={hugeInputClass}
                 placeholder="Hoofdingang - Hal"
                 required
               />
             </div>
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Locatie (Engels) — optioneel"
                   : "Location (English) — optional"}
@@ -162,7 +220,7 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                className={hugeInputClass}
                 placeholder={
                   language === "nl"
                     ? "Leeg laten = Nederlandse tekst gebruiken"
@@ -175,7 +233,7 @@ export function StopForm({
           {/* Title NL/EN */}
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Titel (Nederlands)"
                   : "Title (Dutch)"}
@@ -190,13 +248,13 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                className={hugeInputClass}
                 placeholder="Welkom bij de Gieterij"
                 required
               />
             </div>
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Titel (Engels) — optioneel"
                   : "Title (English) — optional"}
@@ -211,7 +269,7 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                className={hugeInputClass}
                 placeholder={
                   language === "nl"
                     ? "Leeg laten = Nederlandse tekst gebruiken"
@@ -224,7 +282,7 @@ export function StopForm({
           {/* Description NL/EN */}
           <div className="grid md:grid-cols-2 gap-6">
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Beschrijving (Nederlands)"
                   : "Description (Dutch)"}
@@ -238,13 +296,13 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none min-h-[150px]"
+                className={hugeTextAreaClass}
                 placeholder="Beschrijving..."
                 required
               />
             </div>
             <div>
-              <label className="block text-xl mb-3">
+              <label className="block text-2xl mb-4">
                 {language === "nl"
                   ? "Beschrijving (Engels) — optioneel"
                   : "Description (English) — optional"}
@@ -258,7 +316,7 @@ export function StopForm({
                     e.target.value,
                   )
                 }
-                className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none min-h-[150px]"
+                className={hugeTextAreaClass}
                 placeholder={
                   language === "nl"
                     ? "Leeg laten = Nederlandse tekst gebruiken"
@@ -347,7 +405,7 @@ export function StopForm({
 
           {/* Duration */}
           <div>
-            <label className="block text-xl mb-3">
+            <label className="block text-2xl mb-4">
               {language === "nl"
                 ? "Geschatte duur (minuten)"
                 : "Estimated duration (minutes)"}
@@ -361,17 +419,33 @@ export function StopForm({
                   e.target.value ? parseInt(e.target.value) : undefined,
                 )
               }
-              className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+              className={hugeInputClass}
               min="1"
               required
             />
           </div>
 
           {/* Media Section */}
-          <div className="border-2 border-gray-300 rounded-xl p-6">
+          <div
+            className={`border-2 rounded-xl p-6 transition-colors ${
+              isMediaDragging
+                ? "border-[#0066B3] bg-blue-50"
+                : "border-gray-300"
+            }`}
+            onDragEnter={(e) => {
+              e.preventDefault();
+              setIsMediaDragging(true);
+            }}
+            onDragOver={(e) => {
+              e.preventDefault();
+              setIsMediaDragging(true);
+            }}
+            onDragLeave={() => setIsMediaDragging(false)}
+            onDrop={handleMediaDrop}
+          >
             <div className="flex justify-between items-center mb-4">
               <h3 className="text-xl">
-                {language === "nl" ? "Media" : "Media"}
+                {language === "nl" ? "Foto's & video's" : "Photos & videos"}
               </h3>
               {formData.media && (
                 <button
@@ -388,8 +462,35 @@ export function StopForm({
 
             {formData.media ? (
               <div className="space-y-4">
+                <div className="border-2 border-dashed border-gray-300 rounded-lg p-4 bg-white/70">
+                  <input
+                    id="stop-media-upload"
+                    type="file"
+                    accept="image/*,video/*"
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        await setUploadedMedia(file);
+                      }
+                      e.target.value = "";
+                    }}
+                  />
+                  <label
+                    htmlFor="stop-media-upload"
+                    className="flex cursor-pointer items-center justify-center gap-3 text-gray-600 hover:text-[#0066B3]"
+                  >
+                    <Upload className="w-5 h-5" />
+                    <span>
+                      {language === "nl"
+                        ? "Sleep een foto of video hierheen, of klik om een bestand te kiezen"
+                        : "Drop a photo or video here, or click to choose a file"}
+                    </span>
+                  </label>
+                </div>
+
                 <div>
-                  <label className="block text-lg mb-2">
+                  <label className="block text-2xl mb-3">
                     {language === "nl" ? "Type" : "Type"}
                   </label>
                   <select
@@ -403,7 +504,7 @@ export function StopForm({
                           | "audio",
                       )
                     }
-                    className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                      className={hugeInputClass}
                   >
                     <option value="image">
                       {language === "nl"
@@ -411,30 +512,45 @@ export function StopForm({
                         : "Image"}
                     </option>
                     <option value="video">Video</option>
-                    <option value="audio">Audio</option>
                   </select>
                 </div>
 
                 <div>
-                  <label className="block text-lg mb-2">
+                  <label className="block text-2xl mb-3">
                     URL
                   </label>
                   <input
-                    type="url"
+                    type="text"
                     value={formData.media.url}
                     onChange={(e) =>
                       updateMedia("url", e.target.value)
                     }
-                    className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
-                    placeholder="https://..."
+                    className={hugeInputClass}
+                    placeholder="https://... of /uploads/..."
                     required
                   />
+                </div>
+
+                <div className="rounded-lg overflow-hidden border border-gray-200 bg-black/5">
+                  {formData.media.type === "image" ? (
+                    <img
+                      src={resolveMediaUrl(formData.media.url)}
+                      alt=""
+                      className="w-full max-h-72 object-cover"
+                    />
+                  ) : (
+                    <video
+                      src={resolveMediaUrl(formData.media.url)}
+                      className="w-full max-h-72 object-cover"
+                      controls
+                    />
+                  )}
                 </div>
 
                 {formData.media.type === "video" && (
                   <>
                     <div>
-                      <label className="block text-lg mb-2">
+                      <label className="block text-2xl mb-3">
                         {language === "nl"
                           ? "Duur (seconden)"
                           : "Duration (seconds)"}
@@ -450,12 +566,12 @@ export function StopForm({
                               : undefined,
                           )
                         }
-                        className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                        className={hugeInputClass}
                         min="1"
                       />
                     </div>
                     <div>
-                      <label className="block text-lg mb-2">
+                      <label className="block text-2xl mb-3">
                         Thumbnail URL
                       </label>
                       <input
@@ -467,7 +583,7 @@ export function StopForm({
                             e.target.value,
                           )
                         }
-                        className="w-full border-2 border-gray-300 rounded-lg p-4 text-lg focus:border-[#0066B3] focus:outline-none"
+                        className={hugeInputClass}
                         placeholder="https://..."
                       />
                     </div>
@@ -475,16 +591,35 @@ export function StopForm({
                 )}
               </div>
             ) : (
-              <button
-                type="button"
-                onClick={() => updateMedia("type", "image")}
-                className="w-full border-2 border-dashed border-gray-300 rounded-lg p-8 text-lg text-gray-500 hover:border-[#0066B3] hover:text-[#0066B3] transition-colors"
-              >
-                +{" "}
-                {language === "nl"
-                  ? "Media toevoegen"
-                  : "Add media"}
-              </button>
+              <>
+                <input
+                  id="stop-media-upload-empty"
+                  type="file"
+                  accept="image/*,video/*"
+                  className="hidden"
+                  onChange={async (e) => {
+                    const file = e.target.files?.[0];
+                    if (file) {
+                      await setUploadedMedia(file);
+                    }
+                    e.target.value = "";
+                  }}
+                />
+                <label
+                  htmlFor="stop-media-upload-empty"
+                  className="flex min-h-48 w-full cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-300 p-8 text-center text-gray-500 hover:border-[#0066B3] hover:text-[#0066B3] transition-colors"
+                >
+                  <Upload className="w-8 h-8 mb-3" />
+                  <span className="text-lg">
+                    {language === "nl"
+                      ? "Sleep een foto of video hierheen, of klik om te uploaden"
+                      : "Drop a photo or video here, or click to upload"}
+                  </span>
+                  <span className="text-sm mt-2 text-gray-400">
+                    JPG · PNG · MP4 · WebM
+                  </span>
+                </label>
+              </>
             )}
           </div>
 

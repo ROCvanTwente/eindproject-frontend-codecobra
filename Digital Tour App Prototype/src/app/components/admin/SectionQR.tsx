@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import QRCode from "qrcode";
 import { Download, RefreshCw, Link2, Plus } from "lucide-react";
 import { Language, Stop } from "../../types";
+import { createTourStop, saveTourStop } from "../../../services/api";
 
 interface Props {
   language: Language;
@@ -64,7 +65,7 @@ export function SectionQR({
     a.click();
   };
 
-  const linkToStop = () => {
+  const linkToStop = async () => {
     const code = customText.trim();
     if (!code || linkToStopId === "") return;
     if (
@@ -79,21 +80,33 @@ export function SectionQR({
       );
       return;
     }
-    onUpdateStops(
-      stops.map((s) =>
-        s.id === linkToStopId ? { ...s, qrCode: code } : s,
-      ),
-    );
-    log("link-qr-to-stop", `${code} → #${linkToStopId}`);
     const target = stops.find((s) => s.id === linkToStopId);
-    alert(
-      language === "nl"
-        ? `QR-code "${code}" gekoppeld aan "${target?.title.nl ?? "#" + linkToStopId}".`
-        : `QR code "${code}" linked to "${target?.title.en ?? "#" + linkToStopId}".`,
-    );
+
+    try {
+      const updatedStop = await saveTourStop(linkToStopId, {
+        ...target!,
+        qrCode: code,
+      });
+      onUpdateStops(
+        stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)),
+      );
+      log("link-qr-to-stop", `${code} → #${linkToStopId}`);
+      alert(
+        language === "nl"
+          ? `QR-code "${code}" gekoppeld aan "${target?.title.nl ?? "#" + linkToStopId}".`
+          : `QR code "${code}" linked to "${target?.title.en ?? "#" + linkToStopId}".`,
+      );
+    } catch (error) {
+      console.error("Failed to link QR to stop", error);
+      alert(
+        language === "nl"
+          ? "Koppelen van de QR-code is mislukt."
+          : "Linking the QR code failed.",
+      );
+    }
   };
 
-  const createStopFromCode = () => {
+  const createStopFromCode = async () => {
     const code = customText.trim();
     if (!code) return;
     if (stops.some((s) => s.qrCode === code)) {
@@ -104,9 +117,8 @@ export function SectionQR({
       );
       return;
     }
-    const newId = Math.max(0, ...stops.map((s) => s.id)) + 1;
     const newStop: Stop = {
-      id: newId,
+      id: 0,
       qrCode: code,
       location: { nl: "", en: "" },
       title: {
@@ -119,13 +131,23 @@ export function SectionQR({
       description: { nl: "", en: "" },
       estimatedDuration: 3,
     };
-    onUpdateStops([...stops, newStop]);
-    log("create-stop-from-qr", code);
-    alert(
-      language === "nl"
-        ? `Nieuwe stop aangemaakt met QR-code "${code}". Bewerk hem bij "Stops beheren".`
-        : `New stop created with QR code "${code}". Edit it under "Manage stops".`,
-    );
+    try {
+      const createdStop = await createTourStop(newStop);
+      onUpdateStops([...stops, createdStop]);
+      log("create-stop-from-qr", code);
+      alert(
+        language === "nl"
+          ? `Nieuwe stop aangemaakt met QR-code "${code}". Bewerk hem bij "Stops beheren".`
+          : `New stop created with QR code "${code}". Edit it under "Manage stops".`,
+      );
+    } catch (error) {
+      console.error("Failed to create stop from QR", error);
+      alert(
+        language === "nl"
+          ? "Aanmaken van de stop is mislukt."
+          : "Creating the stop failed.",
+      );
+    }
   };
 
   return (

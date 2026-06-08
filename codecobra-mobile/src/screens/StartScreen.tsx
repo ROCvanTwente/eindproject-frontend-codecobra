@@ -11,7 +11,7 @@ import {
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import { RootStackParamList } from "../../App";
 import { Language } from "../types";
-import { VoiceGender } from "../data/settings";
+import { Gender } from "../types";
 import { useAppContext } from "../context/AppContext";
 
 const PRIMARY = "#E30613";
@@ -22,7 +22,7 @@ type Props = NativeStackScreenProps<RootStackParamList, "Start">;
 export function StartScreen({ navigation }: Props) {
   const { settings, setSettings } = useAppContext();
   const [language, setLanguage] = useState<Language | null>(null);
-  const [voice, setVoice] = useState<VoiceGender | null>(null);
+  const [voice, setVoice] = useState<Gender | null>(null);
 
   const confirm = () => {
     if (!language || !voice) return;

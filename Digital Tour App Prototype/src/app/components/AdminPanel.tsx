@@ -36,6 +36,8 @@ import { SectionMedia } from "./admin/SectionMedia";
 import { SectionHistory } from "./admin/SectionHistory";
 import { SectionManualAdmin } from "./admin/SectionManualAdmin";
 import { SectionStart } from "./admin/SectionStart";
+import { SectionFloorPlan } from "./admin/SectionFloorPlan";
+import { createTourStop, saveTourStop } from "../../services/api";
 // Removed: SectionTheme, SectionScavenger, SectionManualUser, SectionBattery
 
 interface AdminPanelProps {
@@ -59,6 +61,7 @@ export const SECTION_META: Array<{
 }> = [
   { key: "home", icon: Home, nl: "Overzicht", en: "Overview" },
   { key: "stops", icon: MapPin, nl: "Stops beheren", en: "Manage stops" },
+  { key: "floorPlan", icon: Compass, nl: "Plattegrond", en: "Floor plan" },
   { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
   // theme removed
@@ -72,11 +75,6 @@ export const SECTION_META: Array<{
   { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
   { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
 ];
-
-const VISIBLE_DASHBOARD_KEYS: SectionKey[] = ["home", "stops", "qr", "floorPlan", "stats", "accounts"];
-const VISIBLE_SECTION_META = SECTION_META.filter((s) =>
-  VISIBLE_DASHBOARD_KEYS.includes(s.key),
-);
 
 export function AdminPanel({
   stops,
@@ -95,31 +93,43 @@ export function AdminPanel({
 
   // ── Stop edit screen (kept from original flow) ─────────────────────────────
   if (editingStop || isCreating) {
-    const handleSave = (stop: Stop) => {
+    const handleSave = async (stop: Stop) => {
       const actor =
         settings.currentSession?.username ?? "admin";
-      if (isCreating) {
-        const newId =
-          Math.max(...stops.map((s) => s.id), 0) + 1;
-        onUpdateStops([...stops, { ...stop, id: newId }]);
-        onUpdateSettings(
-          {},
-          {
-            action: "create-stop",
-            target: stop.title.nl || `#${newId}`,
-          },
+      const existingStop = stops.find((s) => s.id === stop.id);
+      const shouldCreate = isCreating || !existingStop;
+      try {
+        if (shouldCreate) {
+          const createdStop = await createTourStop(stop);
+          onUpdateStops([...stops, createdStop]);
+          onUpdateSettings(
+            {},
+            {
+              action: "create-stop",
+              target: createdStop.title.nl || `#${createdStop.id}`,
+            },
+          );
+        } else {
+          const updatedStop = await saveTourStop(stop.id, stop);
+          onUpdateStops(
+            stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)),
+          );
+          onUpdateSettings(
+            {},
+            {
+              action: "update-stop",
+              target: updatedStop.title.nl || `#${updatedStop.id}`,
+            },
+          );
+        }
+      } catch (error) {
+        console.error("Failed to save stop", error);
+        alert(
+          language === "nl"
+            ? "Opslaan van de stop is mislukt. Controleer of de backend draait."
+            : "Saving the stop failed. Check whether the backend is running.",
         );
-      } else {
-        onUpdateStops(
-          stops.map((s) => (s.id === stop.id ? stop : s)),
-        );
-        onUpdateSettings(
-          {},
-          {
-            action: "update-stop",
-            target: stop.title.nl || `#${stop.id}`,
-          },
-        );
+        return;
       }
       void actor;
       setEditingStop(null);
@@ -152,11 +162,10 @@ export function AdminPanel({
     onBack();
   };
 
-  const currentUserRole = settings.accounts.find(
-    (acc) => acc.username === settings.currentSession?.username,
-  )?.role;
+  const currentUserRole = settings.currentSession?.role;
 
-  const isAdminUser = currentUserRole === "Admin";
+  const isAdminUser =
+    String(currentUserRole ?? "").toLowerCase() === "admin";
 
   const renderSection = () => {
     switch (section) {
@@ -189,6 +198,25 @@ export function AdminPanel({
               setIsCreating(true);
             }}
             log={(a, t) => onUpdateSettings({}, { action: a, target: t })}
+          />
+        );
+      case "floorPlan":
+        return (
+          <SectionFloorPlan
+            language={language}
+            stops={stops}
+            onEdit={(s) => setEditingStop(s)}
+            onCreate={() => {
+              setEditingStop({
+                id: 0,
+                qrCode: "",
+                location: { nl: "", en: "" },
+                title: { nl: "", en: "" },
+                description: { nl: "", en: "" },
+                estimatedDuration: 3,
+              });
+              setIsCreating(true);
+            }}
           />
         );
       case "background":
