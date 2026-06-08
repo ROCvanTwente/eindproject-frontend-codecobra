@@ -1,6 +1,6 @@
 const API_BASE_URL =
   (import.meta as any).env?.VITE_AUTH_BASE_URL ??
-  "http://localhost:5000";
+  "https://digitalworkplacetestapi.runasp.net";
 
 const TOKEN_KEY = "accessToken";
 const LEGACY_TOKEN_KEY = "token";
