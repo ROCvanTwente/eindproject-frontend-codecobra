@@ -23,7 +23,7 @@ const SECONDARY = "#0066B3";
 type Props = NativeStackScreenProps<RootStackParamList, "Scanner">;
 
 export function QRScannerScreen({ navigation, route }: Props) {
-  const { stops } = useAppContext();
+  const { stops, isLoading } = useAppContext();
   const [language, setLanguage] = useState<Language>(route.params.language);
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -34,23 +34,37 @@ export function QRScannerScreen({ navigation, route }: Props) {
   const toggleLanguage = () =>
     setLanguage((prev) => (prev === "nl" ? "en" : "nl"));
 
-  const handleBarCodeScanned = ({ data }: { data: string }) => {
-    if (scanned) return;
-    setScanned(true);
-    const stop = stops.find((s) => s.qrCode === data);
-    if (stop) {
-      setScanning(false);
-      navigation.push("StopDetail", { stopId: stop.id, language });
-    } else {
-      Alert.alert(
-        language === "nl" ? "Onbekende QR-code" : "Unknown QR code",
-        language === "nl"
-          ? "Deze QR-code is niet gekoppeld aan een stop."
-          : "This QR code is not linked to a stop.",
-        [{ text: "OK", onPress: () => setScanned(false) }],
-      );
-    }
-  };
+const handleBarCodeScanned = ({ data }: { data: string }) => {
+  if (scanned) return;
+
+  setScanned(true);
+
+  const scannedValue = (data ?? "").split(",")[0]?.trim();
+
+  console.log("SCANNED VALUE:", scannedValue);
+
+  const stop = stops.find((s) =>
+    (s.qrCode ?? "")
+      .split(",")
+      .map((x) => x.trim())
+      .includes(scannedValue)
+  );
+
+  console.log("MATCH RESULT:", stop);
+
+  if (stop) {
+    setScanning(false);
+    navigation.push("StopDetail", { stopId: stop.id, language });
+  } else {
+    Alert.alert(
+      language === "nl" ? "Onbekende QR-code" : "Unknown QR code",
+      language === "nl"
+        ? "Deze QR-code is niet gekoppeld aan een stop."
+        : "This QR code is not linked to a stop.",
+      [{ text: "OK", onPress: () => setScanned(false) }],
+    );
+  }
+};
 
   const ensureCameraPermission = async () => {
     const status = await check(cameraPermission);

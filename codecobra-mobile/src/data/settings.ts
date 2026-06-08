@@ -116,13 +116,26 @@ export async function saveSettings(s: AdminSettings): Promise<void> {
   } catch {}
 }
 
+import { API_URL } from "./api";
+
 export async function loadStops() {
   try {
-    const raw = await AsyncStorage.getItem(STOPS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
+    const res = await fetch(`${API_URL}/qrcode/all`);
+
+    const data = await res.json();
+
+    console.log("RAW API DATA:", data);
+
+    return data.map((item: any) => ({
+      id: item.id,
+      qrCode: item.code,
+      title: {
+        nl: item.name ?? "Stop",
+        en: item.name ?? "Stop",
+      },
+    }));
+  } catch (err) {
+    console.log("loadStops error:", err);
     return [];
   }
 }

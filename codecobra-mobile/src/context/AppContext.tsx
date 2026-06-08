@@ -17,13 +17,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [settings, setSettingsState] = useState<AdminSettings>(DEFAULTS);
   const [isLoading, setIsLoading] = useState(true);
 
-  useEffect(() => {
-    Promise.all([loadStops(), loadSettings()]).then(([s, cfg]) => {
-      setStopsState(s as Stop[]);
-      setSettingsState(cfg);
-      setIsLoading(false);
-    });
-  }, []);
+useEffect(() => {
+  Promise.all([loadStops(), loadSettings()]).then(([s, cfg]) => {
+    console.log("LOADED STOPS FROM API:", s);
+
+    setStopsState(s as Stop[]);
+    setSettingsState(cfg);
+    setIsLoading(false);
+  });
+}, []);
 
   const setStops = (s: Stop[]) => {
     setStopsState(s);
