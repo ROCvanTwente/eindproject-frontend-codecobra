@@ -123,8 +123,6 @@ export async function loadStops() {
   try {
     const data = await getAllStops(); // Call the new API
 
-    console.log("RAW API DATA (getAllStops):", data);
-
     return data.map((item: any) => ({
       // item.id is 6 (the Stop ID) -> perfectly matches what StopDetail needs!
       id: item.id, 

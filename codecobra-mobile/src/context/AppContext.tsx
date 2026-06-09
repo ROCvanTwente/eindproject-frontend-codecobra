@@ -19,8 +19,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
 useEffect(() => {
   Promise.all([loadStops(), loadSettings()]).then(([s, cfg]) => {
-    console.log("LOADED STOPS FROM API:", s);
-
     setStopsState(s as Stop[]);
     setSettingsState(cfg);
     setIsLoading(false);

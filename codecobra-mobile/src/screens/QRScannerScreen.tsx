@@ -41,16 +41,12 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
 
   const scannedValue = (data ?? "").split(",")[0]?.trim();
 
-  console.log("SCANNED VALUE:", scannedValue);
-
   const stop = stops.find((s) =>
     (s.qrCode ?? "")
       .split(",")
       .map((x) => x.trim())
       .includes(scannedValue)
   );
-
-  console.log("MATCH RESULT:", stop);
 
   if (stop) {
     setScanning(false);
