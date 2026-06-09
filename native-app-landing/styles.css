@@ -41,7 +41,7 @@ body {
 .bg-campus {
     grid-column: 1 / -1;
     grid-row: 1 / -1;
-    background-image: url('../styling-logo\'s/gieterij1_logo-DR102645.jpg');
+    background-image: url('./media/gieterij1_logo-DR102645.jpg');
     background-size: cover;
     background-position: center;
     background-attachment: fixed;

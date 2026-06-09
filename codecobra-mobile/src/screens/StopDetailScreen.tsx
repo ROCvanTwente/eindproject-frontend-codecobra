@@ -57,15 +57,37 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const { stopId, language: initialLang } = route.params;
   const language: Language = initialLang;
 
-  const [stop, setStop] = useState<Stop | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  // Track the detailed stop data from API and a local loading state
+  const [stop, setStop] = useState<any>(null);
+  const [fetching, setFetching] = useState(true);
 
   const stopIndex = stops.findIndex((s) => s.id === stopId);
 
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [speed, setSpeed] = useState<SpeedKey>(settings.textSpeed || "normal");
   const scrollRef = useRef<ScrollView>(null);
+
+  // 1. Fetch data from API on mount
+  useEffect(() => {
+    let isMounted = true;
+    setFetching(true);
+
+    getStopById(stopId)
+      .then((data) => {
+        if (isMounted) {
+          setStop(data);
+          setFetching(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching stop details:", err);
+        if (isMounted) setFetching(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [stopId]);
 
   const setupTts = useCallback(async () => {
     try {
@@ -109,23 +131,6 @@ export function StopDetailScreen({ navigation, route }: Props) {
     };
   }, [setupTts]);
 
-  useEffect(() => {
-    async function fetchStopData() {
-      try {
-        setLoading(true);
-        const data = await getStopById(stopId);
-        setStop(data);
-        setError(false);
-      } catch (err) {
-        console.error("Error fetching stop:", err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchStopData();
-  }, [stopId]);
-
   const handleTTS = useCallback(async () => {
     if (isSpeaking) {
       Tts.stop();
@@ -152,29 +157,6 @@ export function StopDetailScreen({ navigation, route }: Props) {
     Tts.stop();
     navigation.goBack();
   };
-
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.safe, { justifyContent: "center", alignItems: "center", backgroundColor: "#111827" }]}>
-        <ActivityIndicator size="large" color={PRIMARY} />
-      </SafeAreaView>
-    );
-  }
-
-  if (error || !stop) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={{ padding: 20, alignItems: 'center' }}>
-          <Text style={{ fontSize: 18, marginBottom: 20 }}>
-            {language === "nl" ? "Stop niet gevonden." : "Stop not found."}
-          </Text>
-          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>{language === "nl" ? "Terug" : "Back"}</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   const renderMedia = () => {
     if (!stop.media || !stop.media.url) {
@@ -317,6 +299,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
+  center: { alignItems: "center", justifyContent: "center" },
   container: { flex: 1, backgroundColor: "#000" },
   mediaSection: { height: SCREEN_H * 0.42, backgroundColor: "#000" },
   mediaImage: { width: "100%", height: "100%" },

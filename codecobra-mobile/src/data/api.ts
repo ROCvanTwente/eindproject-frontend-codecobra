@@ -88,3 +88,5 @@ export async function getStopById(id: number) {
     const data = await response.json();
     return mapTourStopResponse(data);
 }
+
+export { API_URL };

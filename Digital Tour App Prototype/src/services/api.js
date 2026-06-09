@@ -100,7 +100,10 @@ export function buildTourStopFormData(stop, options = {}) {
   const { qrFieldName, includeEmptyMediaUrl = false } = options;
   const formData = new FormData();
 
-  if (qrFieldName) {
+  if (
+    qrFieldName &&
+    String(qrFieldName).toLowerCase() !== "qrcode"
+  ) {
     appendFormValue(formData, qrFieldName, stop.qrCode);
   }
 
@@ -125,9 +128,7 @@ export function buildTourStopFormData(stop, options = {}) {
 }
 
 export async function createTourStop(stop) {
-  const response = await AddTourStop(
-    buildTourStopFormData(stop, { qrFieldName: "qrCode" }),
-  );
+  const response = await AddTourStop(buildTourStopFormData(stop));
 
   return {
     ...mapTourStopResponse(response),
@@ -171,6 +172,39 @@ export function resolveMediaUrl(filePath) {
   return `${root}${normalizedPath}`;
 }
 
+export async function getLandingPageUrl() {
+  const response = await fetch(`${API_BASE_URL}/qrcode/landing-url`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to fetch landing page URL");
+  }
+
+  return await response.json();
+}
+
+export async function saveLandingPageUrl(url) {
+  const response = await fetch(`${API_BASE_URL}/qrcode/landing-url`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to save landing page URL");
+  }
+
+  return await response.json();
+}
+
 export async function getAllAccounts() {
   const response = await fetch(`${API_BASE_URL}/user/all`, {
     headers: {
@@ -184,14 +218,14 @@ export async function getAllAccounts() {
   return await response.json();
 }
 
-export async function createAccount(username, password, role) {
+export async function createAccount(username, password, role, email) {
   const response = await fetch(`${API_BASE_URL}/user/add`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
     },
-    body: JSON.stringify({ username, password, role }),
+    body: JSON.stringify({ username, password, role, email: email || undefined }),
   });
 
   if (!response.ok) {
