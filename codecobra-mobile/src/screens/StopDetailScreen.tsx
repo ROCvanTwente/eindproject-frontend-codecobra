@@ -17,8 +17,8 @@ import Tts from "react-native-tts";
 
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
-import { Language } from "../types";
-import { getStopById } from "../data/api"; // Added API Import
+import { Language, Stop } from "../types";
+import { getStopById, resolveMediaUrl } from "../data/api";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -59,6 +59,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
   // Track the detailed stop data from API and a local loading state
   const [stop, setStop] = useState<any>(null);
   const [fetching, setFetching] = useState(true);
+  const [error, setError] = useState(false);
 
   const stopIndex = stops.findIndex((s) => s.id === stopId);
 
@@ -66,10 +67,11 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const [speed, setSpeed] = useState<SpeedKey>(settings.textSpeed || "normal");
   const scrollRef = useRef<ScrollView>(null);
 
-  // 1. Fetch data from API on mount
+  // Fetch data from API on mount
   useEffect(() => {
     let isMounted = true;
     setFetching(true);
+    setError(false);
 
     getStopById(stopId)
       .then((data) => {
@@ -80,7 +82,10 @@ export function StopDetailScreen({ navigation, route }: Props) {
       })
       .catch((err) => {
         console.error("Error fetching stop details:", err);
-        if (isMounted) setFetching(false);
+        if (isMounted) {
+          setError(true);
+          setFetching(false);
+        }
       });
 
     return () => {
@@ -104,7 +109,6 @@ export function StopDetailScreen({ navigation, route }: Props) {
       if (bestVoice) {
         await Tts.setDefaultVoice(bestVoice.id);
       }
-
       await Tts.setDefaultLanguage(targetLang);
       await Tts.setDucking(true);
     } catch (e) {
@@ -136,13 +140,18 @@ export function StopDetailScreen({ navigation, route }: Props) {
       Tts.stop();
       return;
     }
-
     if (!stop) return;
 
-    const text = language === "nl"
-      ? `${stop.titleNl}. ${stop.descriptionNl}`
-      : `${stop.titleEn}. ${stop.descriptionEn}`;
+    // Defensively read standard property names or mapped properties
+    const titleText = language === "nl"
+      ? (stop.titleNl || stop.title?.nl || "")
+      : (stop.titleEn || stop.title?.en || "");
 
+    const descText = language === "nl"
+      ? (stop.descriptionNl || stop.description?.nl || "")
+      : (stop.descriptionEn || stop.description?.en || "");
+
+    const text = `${titleText}. ${descText}`;
     const ttsLang = language === "nl" ? "nl-NL" : "en-US";
 
     try {
@@ -160,10 +169,8 @@ export function StopDetailScreen({ navigation, route }: Props) {
   };
 
   const renderMedia = () => {
-    // Note: If media mapping uses item.mediaUrl directly from API, check for that field
-    const mediaUrl = stop.mediaUrl || stop.media?.url;
-    
-    if (!mediaUrl) {
+    // CRITICAL FIX: Safe checks added to make sure stop exists before reading property fields
+    if (!stop || !stop.media || !stop.media.url) {
       return (
         <View style={styles.noMedia}>
           <Text style={styles.noMediaText}>
@@ -173,33 +180,98 @@ export function StopDetailScreen({ navigation, route }: Props) {
       );
     }
 
-    // Determine type (defaulting to image or handling dynamically based on string values)
-    const isVideo = isYouTube(mediaUrl) || isVimeo(mediaUrl);
+    const absoluteMediaUrl = resolveMediaUrl(stop.media.url);
 
-    if (isVideo) {
+    if (stop.media.type === "image") {
       return (
-        <WebView
-          style={styles.mediaImage}
-          source={{ uri: getEmbedUrl(mediaUrl) }}
-          allowsFullscreenVideo
-          javaScriptEnabled
+        <Image 
+          source={{ uri: absoluteMediaUrl }} 
+          style={styles.mediaImage} 
+          resizeMode="cover" 
         />
       );
     }
 
-    return <Image source={{ uri: mediaUrl }} style={styles.mediaImage} resizeMode="cover" />;
+    if (stop.media.type === "video") {
+      const sourceUrl = isYouTube(stop.media.url) || isVimeo(stop.media.url)
+        ? getEmbedUrl(stop.media.url)
+        : absoluteMediaUrl;
+
+      const htmlContent = isYouTube(stop.media.url) || isVimeo(stop.media.url)
+        ? { uri: sourceUrl }
+        : { html: `
+            <html style="margin:0;padding:0;background:#000;">
+              <head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+              <body style="margin:0;padding:0;">
+                <video src="${sourceUrl}" controls playsinline style="width:100%;height:100%;object-fit:contain;background:#000;"></video>
+              </body>
+            </html>
+          ` };
+
+      return (
+        <WebView
+          style={styles.mediaImage}
+          source={htmlContent}
+          allowsFullscreenVideo
+          javaScriptEnabled
+          domStorageEnabled
+        />
+      );
+    }
+
+    if (stop.media.type === "audio") {
+      return (
+        <View style={styles.noMedia}>
+          <Ionicons name="musical-notes-outline" size={64} color="#9ca3af" />
+          <Text style={[styles.noMediaText, { paddingHorizontal: 24, textAlign: 'center' }]}>
+            {language === "nl" ? "Gekoppeld audiobestand:" : "Linked audio guide:"}
+          </Text>
+          <Text style={{ color: PRIMARY, fontSize: 14, fontWeight: '500' }}>
+            {stop.media.url.split('/').pop()}
+          </Text>
+        </View>
+      );
+    }
+    return null;
   };
 
-  // 2. Render Loading State while fetching API data
+  // 2. Loading state guard layout
   if (fetching) {
     return (
-      <SafeAreaView style={[styles.safe, styles.center]}>
+      <SafeAreaView style={[styles.safe, styles.center, { backgroundColor: "#111827" }]}>
         <ActivityIndicator size="large" color={PRIMARY} />
       </SafeAreaView>
     );
   }
 
-  // 3. Render Error State if API returns nothing or fails
+  // 3. Error state guard layout
+  if (error || !stop) {
+    return (
+      <SafeAreaView style={[styles.safe, styles.center, { backgroundColor: "#111827" }]}>
+        <View style={{ padding: 20, alignItems: 'center' }}>
+          <Ionicons name="alert-circle-outline" size={64} color={PRIMARY} style={{ marginBottom: 16 }} />
+          <Text style={{ fontSize: 18, color: '#fff', marginBottom: 20, textAlign: 'center' }}>
+            {language === "nl" ? "Informatie kon niet worden geladen." : "Failed to load stop information."}
+          </Text>
+          <TouchableOpacity onPress={handleBack} style={[styles.backBtn, { position: 'relative', top: 0, left: 0 }]}>
+            <Text style={styles.backBtnText}>{language === "nl" ? "Terug" : "Back"}</Text>
+          </TouchableOpacity>
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  // Defensively match language configurations
+  const activeTitle = language === "nl"
+    ? (stop.titleNl || stop.title?.nl || "")
+    : (stop.titleEn || stop.title?.en || "");
+
+  const activeDescription = language === "nl"
+    ? (stop.descriptionNl || stop.description?.nl || "")
+    : (stop.descriptionEn || stop.description?.en || "");
+
+  const displayIndex = stopIndex >= 0 ? stopIndex + 1 : 1;
+  const totalStopsCount = stops.length > 0 ? stops.length : 1;
 
   return (
     <View style={styles.container}>
@@ -213,7 +285,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
-            {stopIndex + 1} / {stops.length}
+            {displayIndex} / {totalStopsCount}
           </Text>
         </View>
       </View>
@@ -235,8 +307,8 @@ export function StopDetailScreen({ navigation, route }: Props) {
         </View>
 
         <ScrollView ref={scrollRef} style={styles.textScroll} contentContainerStyle={styles.textContent}>
-          <Text style={styles.stopTitle}>{language === "nl" ? stop.titleNl : stop.titleEn}</Text>
-          <Text style={styles.stopDescription}>{language === "nl" ? stop.descriptionNl : stop.descriptionEn}</Text>
+          <Text style={styles.stopTitle}>{activeTitle}</Text>
+          <Text style={styles.stopDescription}>{activeDescription}</Text>
 
           <View style={styles.nextCard}>
             <Text style={styles.nextCardText}>
