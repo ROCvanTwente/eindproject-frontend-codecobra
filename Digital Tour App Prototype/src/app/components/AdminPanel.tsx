@@ -3,7 +3,6 @@ import {
   ArrowLeft,
   MapPin,
   Volume2,
-  LogIn,
   Users,
   QrCode,
   Compass,
@@ -35,7 +34,6 @@ import { SectionStats } from "./admin/SectionStats";
 import { SectionMedia } from "./admin/SectionMedia";
 import { SectionHistory } from "./admin/SectionHistory";
 import { SectionManualAdmin } from "./admin/SectionManualAdmin";
-import { SectionStart } from "./admin/SectionStart";
 import { SectionFloorPlan } from "./admin/SectionFloorPlan";
 import { createTourStop, saveTourStop } from "../../services/api";
 // Removed: SectionTheme, SectionScavenger, SectionManualUser, SectionBattery
@@ -67,7 +65,6 @@ export const SECTION_META: Array<{
   // theme removed
   { key: "background", icon: ImageIcon, nl: "Achtergrond", en: "Background" },
   { key: "textSpeech", icon: Volume2, nl: "Tekst & spraak", en: "Text & speech" },
-  { key: "start", icon: LogIn, nl: "Beginscherm", en: "Start screen" },
   { key: "scavenger", icon: Compass, nl: "Speurtocht", en: "Scavenger hunt", disabled: true },
   { key: "battery", icon: Battery, nl: "Beacon batterij", en: "Beacon battery", disabled: true },
   { key: "stats", icon: BarChart3, nl: "Statistieken", en: "Statistics" },
@@ -290,14 +287,6 @@ export function AdminPanel({
       case "manualAdmin":
         return (
           <SectionManualAdmin
-            language={language}
-            settings={settings}
-            onChange={onUpdateSettings}
-          />
-        );
-      case "start":
-        return (
-          <SectionStart
             language={language}
             settings={settings}
             onChange={onUpdateSettings}
