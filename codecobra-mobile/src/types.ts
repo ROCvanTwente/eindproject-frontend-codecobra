@@ -1,11 +1,15 @@
 export type Language = "nl" | "en";
+export type Gender = "female" | "male";
 
 export interface Stop {
   id: number;
   qrCode: string;
-  location: { nl: string; en: string };
-  title: { nl: string; en: string };
-  description: { nl: string; en: string };
+  locationNl: string;
+  locationEn: string;
+  titleNl: string;
+  titleEn: string;
+  descriptionNl: string;
+  descriptionEn: string;
   media?: {
     type: "image" | "video" | "audio";
     url: string;
@@ -13,8 +17,8 @@ export interface Stop {
     thumbnail?: string;
   };
   estimatedDuration: number;
-  mapX?: number;
-  mapY?: number;
+  positionX?: number;
+  positionY?: number;
 }
 
 export interface TourData {

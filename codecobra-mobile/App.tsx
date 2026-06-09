@@ -7,7 +7,6 @@ import { QRScannerScreen } from "./src/screens/QRScannerScreen";
 import { StopDetailScreen } from "./src/screens/StopDetailScreen";
 import { RouteOverviewScreen } from "./src/screens/RouteOverviewScreen";
 import { FloorPlanScreen } from "./src/screens/FloorPlanScreen";
-import { AdminScreen } from "./src/screens/AdminScreen";
 import { Language } from "./src/types";
 
 export type RootStackParamList = {
@@ -25,7 +24,7 @@ export default function App() {
   return (
     <AppProvider>
       <NavigationContainer>
-        <StatusBar barStyle="light-content" />
+        <StatusBar hidden={true} />
         <Stack.Navigator
           initialRouteName="Start"
           screenOptions={{ headerShown: false, animation: "slide_from_right" }}
@@ -35,7 +34,6 @@ export default function App() {
           <Stack.Screen name="StopDetail" component={StopDetailScreen} />
           <Stack.Screen name="RouteOverview" component={RouteOverviewScreen} />
           <Stack.Screen name="FloorPlan" component={FloorPlanScreen} />
-          <Stack.Screen name="Admin" component={AdminScreen} />
         </Stack.Navigator>
       </NavigationContainer>
     </AppProvider>
