@@ -17,11 +17,20 @@ export function SectionQR({
   onUpdateStops,
   log,
 }: Props) {
+  const DEFAULT_LANDING_PAGE_URL =
+    ((import.meta as any)?.env?.VITE_LANDING_PAGE_URL as string) ||
+    "https://eindproject-frontend-codecobra.vercel.app/";
   const [linkToStopId, setLinkToStopId] = useState<number | "">(
     "",
   );
   const [urls, setUrls] = useState<Record<string, string>>({});
   const [customText, setCustomText] = useState("");
+  const [landingText, setLandingText] = useState(
+    DEFAULT_LANDING_PAGE_URL,
+  );
+  const [landingDataUrl, setLandingDataUrl] = useState<
+    string | null
+  >(null);
   const [customDataUrl, setCustomDataUrl] = useState<
     string | null
   >(null);
@@ -46,6 +55,33 @@ export function SectionQR({
       cancelled = true;
     };
   }, [stops]);
+
+  const generateLanding = async () => {
+    const urlText = landingText.trim();
+    if (!urlText) {
+      alert(
+        language === "nl"
+          ? "Vul eerst een landingspagina-link in."
+          : "Please enter a landing page link first.",
+      );
+      return;
+    }
+
+    try {
+      const url = await QRCode.toDataURL(urlText, {
+        width: 260,
+        margin: 1,
+      });
+      setLandingDataUrl(url);
+      log("generate-landing-qr", urlText);
+    } catch {
+      alert(
+        language === "nl"
+          ? "Genereren van landing page QR is mislukt."
+          : "Generating landing page QR failed.",
+      );
+    }
+  };
 
   const generateCustom = async () => {
     if (!customText.trim()) return;
@@ -162,6 +198,65 @@ export function SectionQR({
           ? "Elke stop krijgt automatisch een QR-code op basis van zijn code. Download en print om aan de muur te plakken."
           : "Each stop gets a QR code based on its code. Download and print to place on the wall."}
       </p>
+
+      <div className="border-2 border-gray-200 rounded-xl p-4 bg-gray-50 mb-6">
+        <h3 className="text-lg mb-2">
+          {language === "nl"
+            ? "Landing page QR-code"
+            : "Landing page QR code"}
+        </h3>
+        <p className="text-sm text-gray-600 mb-3">
+          {language === "nl"
+            ? "Vul de landingspagina-link in en genereer een QR-code."
+            : "Enter the landing page link and generate a QR code."}
+        </p>
+
+        <div className="flex gap-2 mb-3">
+          <input
+            type="url"
+            value={landingText}
+            onChange={(e) => setLandingText(e.target.value)}
+            placeholder={
+              language === "nl"
+                ? "https://jouwdomein.nl/landing"
+                : "https://yourdomain.com/landing"
+            }
+            className="flex-1 px-3 py-2 rounded-lg border-2 border-gray-300"
+          />
+          <button
+            onClick={generateLanding}
+            className="bg-[#0066B3] text-white px-4 py-2 rounded-lg hover:opacity-90"
+          >
+            {language === "nl" ? "Genereer" : "Generate"}
+          </button>
+        </div>
+
+        {landingDataUrl ? (
+          <div className="flex flex-col items-center gap-3">
+            <img
+              src={landingDataUrl}
+              alt="landing qr"
+              className="w-48 h-48"
+            />
+            <p className="text-xs text-gray-500 break-all text-center">
+              {landingText.trim()}
+            </p>
+            <button
+              onClick={() =>
+                download(landingDataUrl, "qr-landing-page.png")
+              }
+              className="bg-gray-700 text-white px-4 py-2 rounded-lg hover:opacity-90 flex items-center gap-1"
+            >
+              <Download className="w-4 h-4" />
+              {language === "nl" ? "Download PNG" : "Download PNG"}
+            </button>
+          </div>
+        ) : (
+          <p className="text-sm text-gray-500">
+            {language === "nl" ? "QR wordt geladen..." : "Loading QR..."}
+          </p>
+        )}
+      </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 mb-6">
         {stops.map((stop) => (
