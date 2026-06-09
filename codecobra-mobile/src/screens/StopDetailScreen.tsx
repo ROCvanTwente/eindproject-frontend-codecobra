@@ -1,3 +1,4 @@
+// StopDetailScreen.tsx
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   View,
@@ -17,8 +18,8 @@ import Tts from "react-native-tts";
 
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
-import { Language, Stop, Gender } from "../types";
-import { getStopById } from "../data/api";
+import { Language, Stop } from "../types";
+import { getStopById, resolveMediaUrl } from "../data/api"; // Imported resolveMediaUrl
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -69,12 +70,9 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const setupTts = useCallback(async () => {
     try {
       await Tts.getInitStatus();
-
-      // Zoek naar de beste stemmen op het toestel
       const voices = await Tts.voices();
       const targetLang = language === "nl" ? "nl-NL" : "en-US";
 
-      // Filter op taal en zoek naar 'premium', 'neural' of 'enhanced' (deze klinken menselijk)
       const bestVoice = voices.find(v =>
         v.language.includes(targetLang) &&
         (v.name.toLowerCase().includes("premium") ||
@@ -85,9 +83,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
       if (bestVoice) {
         await Tts.setDefaultVoice(bestVoice.id);
       }
-
       await Tts.setDefaultLanguage(targetLang);
-      // Iets lagere pitch maakt het vaak natuurlijker
       await Tts.setDucking(true);
     } catch (e) {
       console.error("TTS Setup error:", e);
@@ -97,7 +93,6 @@ export function StopDetailScreen({ navigation, route }: Props) {
   useEffect(() => {
     setupTts();
 
-    // Define handlers for clean removal
     const onStart = () => setIsSpeaking(true);
     const onFinish = () => setIsSpeaking(false);
     const onCancel = () => setIsSpeaking(false);
@@ -136,7 +131,6 @@ export function StopDetailScreen({ navigation, route }: Props) {
       Tts.stop();
       return;
     }
-
     if (!stop) return;
 
     const text = language === "nl"
@@ -183,7 +177,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
   }
 
   const renderMedia = () => {
-    if (!stop.media) {
+    if (!stop.media || !stop.media.url) {
       return (
         <View style={styles.noMedia}>
           <Text style={styles.noMediaText}>
@@ -192,24 +186,58 @@ export function StopDetailScreen({ navigation, route }: Props) {
         </View>
       );
     }
+
+    // Resolve the full asset path out of the ASP.NET backend's static directory
+    const absoluteMediaUrl = resolveMediaUrl(stop.media.url);
+
     if (stop.media.type === "image") {
-      return <Image source={{ uri: stop.media.url }} style={styles.mediaImage} resizeMode="cover" />;
-    }
-    if (stop.media.type === "video") {
       return (
-        <WebView
-          style={styles.mediaImage}
-          source={{ uri: getEmbedUrl(stop.media.url) }}
-          allowsFullscreenVideo
-          javaScriptEnabled
+        <Image 
+          source={{ uri: absoluteMediaUrl }} 
+          style={styles.mediaImage} 
+          resizeMode="cover" 
         />
       );
     }
+
+    if (stop.media.type === "video") {
+      // If it's a raw file saved to wwwroot (like an MP4), we can embed it in a HTML5 video wrapper for the webview
+      const sourceUrl = isYouTube(stop.media.url) || isVimeo(stop.media.url)
+        ? getEmbedUrl(stop.media.url)
+        : absoluteMediaUrl;
+
+      const htmlContent = isYouTube(stop.media.url) || isVimeo(stop.media.url)
+        ? { uri: sourceUrl }
+        : { html: `
+            <html style="margin:0;padding:0;background:#000;">
+              <head><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
+              <body style="margin:0;padding:0;">
+                <video src="${sourceUrl}" controls playsinline style="width:100%;height:100%;object-fit:contain;background:#000;"></video>
+              </body>
+            </html>
+          ` };
+
+      return (
+        <WebView
+          style={styles.mediaImage}
+          source={htmlContent}
+          allowsFullscreenVideo
+          javaScriptEnabled
+          domStorageEnabled
+        />
+      );
+    }
+
     if (stop.media.type === "audio") {
       return (
         <View style={styles.noMedia}>
           <Ionicons name="musical-notes-outline" size={64} color="#9ca3af" />
-          <Text style={styles.noMediaText}>{stop.media.url}</Text>
+          <Text style={[styles.noMediaText, { paddingHorizontal: 24, textAlign: 'center' }]}>
+            {language === "nl" ? "Gekoppeld audiobestand:" : "Linked audio guide:"}
+          </Text>
+          <Text style={{ color: PRIMARY, fontSize: 14, fontWeight: '500' }}>
+            {stop.media.url.split('/').pop()}
+          </Text>
         </View>
       );
     }
