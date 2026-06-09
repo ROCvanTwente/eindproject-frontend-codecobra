@@ -100,7 +100,10 @@ export function buildTourStopFormData(stop, options = {}) {
   const { qrFieldName, includeEmptyMediaUrl = false } = options;
   const formData = new FormData();
 
-  if (qrFieldName) {
+  if (
+    qrFieldName &&
+    String(qrFieldName).toLowerCase() !== "qrcode"
+  ) {
     appendFormValue(formData, qrFieldName, stop.qrCode);
   }
 
@@ -125,9 +128,7 @@ export function buildTourStopFormData(stop, options = {}) {
 }
 
 export async function createTourStop(stop) {
-  const response = await AddTourStop(
-    buildTourStopFormData(stop, { qrFieldName: "qrCode" }),
-  );
+  const response = await AddTourStop(buildTourStopFormData(stop));
 
   return {
     ...mapTourStopResponse(response),
