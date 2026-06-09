@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getAllStops } from "./api";
 
 export type SpeedKey = "slow" | "normal" | "fast";
 export type VoiceGender = "female" | "male";
@@ -116,13 +117,29 @@ export async function saveSettings(s: AdminSettings): Promise<void> {
   } catch {}
 }
 
+import { API_URL } from "./api";
+
 export async function loadStops() {
   try {
-    const raw = await AsyncStorage.getItem(STOPS_KEY);
-    if (!raw) return [];
-    const parsed = JSON.parse(raw);
-    return Array.isArray(parsed) ? parsed : [];
-  } catch {
+    const data = await getAllStops(); // Call the new API
+
+    return data.map((item: any) => ({
+      // item.id is 6 (the Stop ID) -> perfectly matches what StopDetail needs!
+      id: item.id, 
+      
+      // item.qrCode.code is "hoi" -> matches what the QR scanner searches for!
+      qrCode: item.qrCode?.code ?? "", 
+      
+      // Keep your UI titles clean
+      titleNl: item.titleNl ?? "Stop",
+      titleEn: item.titleEn ?? "Stop",
+      title: {
+        nl: item.titleNl ?? "Stop",
+        en: item.titleEn ?? "Stop",
+      },
+    }));
+  } catch (err) {
+    console.log("loadStops error:", err);
     return [];
   }
 }

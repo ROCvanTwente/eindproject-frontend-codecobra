@@ -30,7 +30,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Trigger file download
         const downloadLink = document.createElement('a');
-        downloadLink.href = 'app-release.apk';
+        downloadLink.href = './downloads/app-release.apk';
         downloadLink.download = 'Rondleiding-App.apk';
         document.body.appendChild(downloadLink);
         downloadLink.click();
