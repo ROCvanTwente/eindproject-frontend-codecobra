@@ -172,6 +172,39 @@ export function resolveMediaUrl(filePath) {
   return `${root}${normalizedPath}`;
 }
 
+export async function getLandingPageUrl() {
+  const response = await fetch(`${API_BASE_URL}/qrcode/landing-url`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to fetch landing page URL");
+  }
+
+  return await response.json();
+}
+
+export async function saveLandingPageUrl(url) {
+  const response = await fetch(`${API_BASE_URL}/qrcode/landing-url`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({ url }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to save landing page URL");
+  }
+
+  return await response.json();
+}
+
 export async function getAllAccounts() {
   const response = await fetch(`${API_BASE_URL}/user/all`, {
     headers: {
