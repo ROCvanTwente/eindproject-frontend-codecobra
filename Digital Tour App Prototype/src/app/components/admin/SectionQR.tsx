@@ -135,32 +135,35 @@ export function SectionQR({
     setIsLandingBusy(true);
 
     try {
-      const shouldPersist = urlText !== savedLandingUrl;
-
-      if (shouldPersist) {
-        await saveLandingPageUrl(urlText);
-        setSavedLandingUrl(urlText);
-      }
-
-      if (!shouldPersist && landingDataUrl) {
-        log("generate-landing-qr-unchanged", urlText);
-        return;
-      }
-
       const url = await QRCode.toDataURL(urlText, {
         width: 260,
         margin: 1,
       });
       setLandingDataUrl(url);
-      log(
-        shouldPersist ? "generate-landing-qr-saved" : "generate-landing-qr",
-        urlText,
-      );
+
+      const shouldPersist = urlText !== savedLandingUrl;
+
+      if (shouldPersist) {
+        try {
+          await saveLandingPageUrl(urlText);
+          setSavedLandingUrl(urlText);
+          log("generate-landing-qr-saved", urlText);
+        } catch (error) {
+          console.error("Failed to save landing page URL", error);
+          alert(
+            language === "nl"
+              ? "QR-code is gegenereerd, maar opslaan in de database is mislukt."
+              : "QR code was generated, but saving to the database failed.",
+          );
+        }
+      } else {
+        log("generate-landing-qr", urlText);
+      }
     } catch {
       alert(
         language === "nl"
-          ? "Opslaan of genereren van landing page QR is mislukt."
-          : "Saving or generating landing page QR failed.",
+          ? "Genereren van landing page QR is mislukt."
+          : "Generating landing page QR failed.",
       );
     } finally {
       setIsLandingBusy(false);

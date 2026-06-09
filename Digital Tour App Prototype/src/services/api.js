@@ -2,6 +2,9 @@ import { getAuthHeaders } from "./authApi";
 
 const API_BASE_URL =
   import.meta.env?.VITE_API_BASE_URL ?? "https://digitalworkplacetestapi.runasp.net/api";
+const LANDING_URL_STORAGE_KEY = "admin_landing_page_url";
+const LANDING_URL_API_MODE_KEY = "admin_landing_url_api_mode";
+let landingUrlApiMode = "unknown";
 
 function toApiRoot(url) {
   return url.replace(/\/$/, "").replace(/\/api$/, "");
@@ -22,6 +25,86 @@ function appendFormValue(formData, key, value) {
     return;
   }
   formData.append(key, String(value));
+}
+
+function getLandingUrlFromStorage() {
+  if (typeof window === "undefined") {
+    return "";
+  }
+
+  try {
+    return String(window.localStorage.getItem(LANDING_URL_STORAGE_KEY) ?? "").trim();
+  } catch {
+    return "";
+  }
+}
+
+function saveLandingUrlToStorage(url) {
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(LANDING_URL_STORAGE_KEY, String(url ?? "").trim());
+  } catch {
+    // Ignore storage failures (private mode/quota/security policy)
+  }
+}
+
+function getLandingUrlApiMode() {
+  if (landingUrlApiMode !== "unknown") {
+    return landingUrlApiMode;
+  }
+
+  if (typeof window === "undefined") {
+    return landingUrlApiMode;
+  }
+
+  try {
+    const savedMode = String(
+      window.localStorage.getItem(LANDING_URL_API_MODE_KEY) ?? "unknown",
+    );
+
+    if (savedMode === "local" || savedMode === "server") {
+      landingUrlApiMode = savedMode;
+    }
+  } catch {
+    // Ignore storage failures.
+  }
+
+  return landingUrlApiMode;
+}
+
+function setLandingUrlApiMode(mode) {
+  landingUrlApiMode = mode;
+
+  if (typeof window === "undefined") {
+    return;
+  }
+
+  try {
+    window.localStorage.setItem(LANDING_URL_API_MODE_KEY, mode);
+  } catch {
+    // Ignore storage failures.
+  }
+}
+
+function isLandingUrlEndpointUnavailable(status, errorText) {
+  if (status === 404 || status === 405) {
+    return true;
+  }
+
+  // Some deployed versions route /landing-url to /{id}, causing model validation on "id".
+  if (
+    status === 400 &&
+    /value\s+'landing-url'\s+is\s+not\s+valid|"errors"\s*:\s*\{\s*"id"/i.test(
+      String(errorText ?? ""),
+    )
+  ) {
+    return true;
+  }
+
+  return false;
 }
 
 function detectMediaKind(mediaUrl) {
@@ -173,6 +256,14 @@ export function resolveMediaUrl(filePath) {
 }
 
 export async function getLandingPageUrl() {
+  if (getLandingUrlApiMode() === "local") {
+    return {
+      url: getLandingUrlFromStorage(),
+      updatedAt: null,
+      source: "local",
+    };
+  }
+
   const response = await fetch(`${API_BASE_URL}/qrcode/landing-url`, {
     headers: {
       ...getAuthHeaders(),
@@ -181,13 +272,42 @@ export async function getLandingPageUrl() {
 
   if (!response.ok) {
     const errorText = await response.text();
+
+    if (isLandingUrlEndpointUnavailable(response.status, errorText)) {
+      setLandingUrlApiMode("local");
+      return {
+        url: getLandingUrlFromStorage(),
+        updatedAt: null,
+        source: "local",
+      };
+    }
+
     throw new Error(errorText || "Failed to fetch landing page URL");
   }
 
-  return await response.json();
+  const data = await response.json();
+  setLandingUrlApiMode("server");
+  const url = String(data?.url ?? "").trim();
+  if (url) {
+    saveLandingUrlToStorage(url);
+  }
+
+  return {
+    ...data,
+    source: "server",
+  };
 }
 
 export async function saveLandingPageUrl(url) {
+  if (getLandingUrlApiMode() === "local") {
+    saveLandingUrlToStorage(url);
+    return {
+      url,
+      updatedAt: null,
+      source: "local",
+    };
+  }
+
   const response = await fetch(`${API_BASE_URL}/qrcode/landing-url`, {
     method: "PUT",
     headers: {
@@ -199,10 +319,28 @@ export async function saveLandingPageUrl(url) {
 
   if (!response.ok) {
     const errorText = await response.text();
+
+    if (isLandingUrlEndpointUnavailable(response.status, errorText)) {
+      setLandingUrlApiMode("local");
+      saveLandingUrlToStorage(url);
+      return {
+        url,
+        updatedAt: null,
+        source: "local",
+      };
+    }
+
     throw new Error(errorText || "Failed to save landing page URL");
   }
 
-  return await response.json();
+  const data = await response.json();
+  setLandingUrlApiMode("server");
+  saveLandingUrlToStorage(data?.url ?? url);
+
+  return {
+    ...data,
+    source: "server",
+  };
 }
 
 export async function getAllAccounts() {
