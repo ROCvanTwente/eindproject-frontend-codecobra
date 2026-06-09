@@ -36,3 +36,5 @@ export async function getStopById(id: number) {
     }
     return response.json();
 }
+
+export { API_URL };

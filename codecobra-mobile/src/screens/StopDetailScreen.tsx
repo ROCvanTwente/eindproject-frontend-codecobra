@@ -18,7 +18,6 @@ import Tts from "react-native-tts";
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language, Stop, Gender } from "../types";
-import { getStopById } from "../data/api";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -56,9 +55,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const { stopId, language: initialLang } = route.params;
   const language: Language = initialLang;
 
-  const [stop, setStop] = useState<Stop | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(false);
+  const stop = stops.find((s) => s.id === stopId)!;
 
   const stopIndex = stops.findIndex((s) => s.id === stopId);
 
@@ -114,30 +111,19 @@ export function StopDetailScreen({ navigation, route }: Props) {
     };
   }, [setupTts]);
 
-  useEffect(() => {
-    async function fetchStopData() {
-      try {
-        setLoading(true);
-        const data = await getStopById(stopId);
-        setStop(data);
-        setError(false);
-      } catch (err) {
-        console.error("Error fetching stop:", err);
-        setError(true);
-      } finally {
-        setLoading(false);
-      }
-    }
-    fetchStopData();
-  }, [stopId]);
-
   const handleTTS = useCallback(async () => {
     if (isSpeaking) {
       Tts.stop();
       return;
     }
 
-    if (!stop) return;
+    if (!stop) {
+      return (
+        <SafeAreaView style={styles.safe}>
+          <Text>Stop niet gevonden</Text>
+        </SafeAreaView>
+      );
+    }
 
     const text = language === "nl"
       ? `${stop.titleNl}. ${stop.descriptionNl}`
@@ -159,28 +145,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
-  if (loading) {
-    return (
-      <SafeAreaView style={[styles.safe, { justifyContent: "center", alignItems: "center", backgroundColor: "#111827" }]}>
-        <ActivityIndicator size="large" color={PRIMARY} />
-      </SafeAreaView>
-    );
-  }
 
-  if (error || !stop) {
-    return (
-      <SafeAreaView style={styles.safe}>
-        <View style={{ padding: 20, alignItems: 'center' }}>
-          <Text style={{ fontSize: 18, marginBottom: 20 }}>
-            {language === "nl" ? "Stop niet gevonden." : "Stop not found."}
-          </Text>
-          <TouchableOpacity onPress={handleBack} style={styles.backBtn}>
-            <Text style={styles.backBtnText}>{language === "nl" ? "Terug" : "Back"}</Text>
-          </TouchableOpacity>
-        </View>
-      </SafeAreaView>
-    );
-  }
 
   const renderMedia = () => {
     if (!stop.media) {
