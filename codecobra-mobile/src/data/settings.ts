@@ -1,4 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { getAllStops } from "./api";
 
 export type SpeedKey = "slow" | "normal" | "fast";
 export type VoiceGender = "female" | "male";
@@ -120,18 +121,23 @@ import { API_URL } from "./api";
 
 export async function loadStops() {
   try {
-    const res = await fetch(`${API_URL}/qrcode/all`);
+    const data = await getAllStops(); // Call the new API
 
-    const data = await res.json();
-
-    console.log("RAW API DATA:", data);
+    console.log("RAW API DATA (getAllStops):", data);
 
     return data.map((item: any) => ({
-      id: item.id,
-      qrCode: item.code,
+      // item.id is 6 (the Stop ID) -> perfectly matches what StopDetail needs!
+      id: item.id, 
+      
+      // item.qrCode.code is "hoi" -> matches what the QR scanner searches for!
+      qrCode: item.qrCode?.code ?? "", 
+      
+      // Keep your UI titles clean
+      titleNl: item.titleNl ?? "Stop",
+      titleEn: item.titleEn ?? "Stop",
       title: {
-        nl: item.name ?? "Stop",
-        en: item.name ?? "Stop",
+        nl: item.titleNl ?? "Stop",
+        en: item.titleEn ?? "Stop",
       },
     }));
   } catch (err) {

@@ -17,7 +17,8 @@ import Tts from "react-native-tts";
 
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
-import { Language, Stop, Gender } from "../types";
+import { Language } from "../types";
+import { getStopById } from "../data/api"; // Added API Import
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -55,7 +56,9 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const { stopId, language: initialLang } = route.params;
   const language: Language = initialLang;
 
-  const stop = stops.find((s) => s.id === stopId)!;
+  // Track the detailed stop data from API and a local loading state
+  const [stop, setStop] = useState<any>(null);
+  const [fetching, setFetching] = useState(true);
 
   const stopIndex = stops.findIndex((s) => s.id === stopId);
 
@@ -63,15 +66,34 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const [speed, setSpeed] = useState<SpeedKey>(settings.textSpeed || "normal");
   const scrollRef = useRef<ScrollView>(null);
 
+  // 1. Fetch data from API on mount
+  useEffect(() => {
+    let isMounted = true;
+    setFetching(true);
+
+    getStopById(stopId)
+      .then((data) => {
+        if (isMounted) {
+          setStop(data);
+          setFetching(false);
+        }
+      })
+      .catch((err) => {
+        console.error("Error fetching stop details:", err);
+        if (isMounted) setFetching(false);
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [stopId]);
+
   const setupTts = useCallback(async () => {
     try {
       await Tts.getInitStatus();
-
-      // Zoek naar de beste stemmen op het toestel
       const voices = await Tts.voices();
       const targetLang = language === "nl" ? "nl-NL" : "en-US";
 
-      // Filter op taal en zoek naar 'premium', 'neural' of 'enhanced' (deze klinken menselijk)
       const bestVoice = voices.find(v =>
         v.language.includes(targetLang) &&
         (v.name.toLowerCase().includes("premium") ||
@@ -84,7 +106,6 @@ export function StopDetailScreen({ navigation, route }: Props) {
       }
 
       await Tts.setDefaultLanguage(targetLang);
-      // Iets lagere pitch maakt het vaak natuurlijker
       await Tts.setDucking(true);
     } catch (e) {
       console.error("TTS Setup error:", e);
@@ -94,7 +115,6 @@ export function StopDetailScreen({ navigation, route }: Props) {
   useEffect(() => {
     setupTts();
 
-    // Define handlers for clean removal
     const onStart = () => setIsSpeaking(true);
     const onFinish = () => setIsSpeaking(false);
     const onCancel = () => setIsSpeaking(false);
@@ -117,13 +137,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
       return;
     }
 
-    if (!stop) {
-      return (
-        <SafeAreaView style={styles.safe}>
-          <Text>Stop niet gevonden</Text>
-        </SafeAreaView>
-      );
-    }
+    if (!stop) return;
 
     const text = language === "nl"
       ? `${stop.titleNl}. ${stop.descriptionNl}`
@@ -145,10 +159,11 @@ export function StopDetailScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
-
-
   const renderMedia = () => {
-    if (!stop.media) {
+    // Note: If media mapping uses item.mediaUrl directly from API, check for that field
+    const mediaUrl = stop.mediaUrl || stop.media?.url;
+    
+    if (!mediaUrl) {
       return (
         <View style={styles.noMedia}>
           <Text style={styles.noMediaText}>
@@ -157,29 +172,34 @@ export function StopDetailScreen({ navigation, route }: Props) {
         </View>
       );
     }
-    if (stop.media.type === "image") {
-      return <Image source={{ uri: stop.media.url }} style={styles.mediaImage} resizeMode="cover" />;
-    }
-    if (stop.media.type === "video") {
+
+    // Determine type (defaulting to image or handling dynamically based on string values)
+    const isVideo = isYouTube(mediaUrl) || isVimeo(mediaUrl);
+
+    if (isVideo) {
       return (
         <WebView
           style={styles.mediaImage}
-          source={{ uri: getEmbedUrl(stop.media.url) }}
+          source={{ uri: getEmbedUrl(mediaUrl) }}
           allowsFullscreenVideo
           javaScriptEnabled
         />
       );
     }
-    if (stop.media.type === "audio") {
-      return (
-        <View style={styles.noMedia}>
-          <Ionicons name="musical-notes-outline" size={64} color="#9ca3af" />
-          <Text style={styles.noMediaText}>{stop.media.url}</Text>
-        </View>
-      );
-    }
-    return null;
+
+    return <Image source={{ uri: mediaUrl }} style={styles.mediaImage} resizeMode="cover" />;
   };
+
+  // 2. Render Loading State while fetching API data
+  if (fetching) {
+    return (
+      <SafeAreaView style={[styles.safe, styles.center]}>
+        <ActivityIndicator size="large" color={PRIMARY} />
+      </SafeAreaView>
+    );
+  }
+
+  // 3. Render Error State if API returns nothing or fails
 
   return (
     <View style={styles.container}>
@@ -254,6 +274,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#fff" },
+  center: { alignItems: "center", justifyContent: "center" },
   container: { flex: 1, backgroundColor: "#000" },
   mediaSection: { height: SCREEN_H * 0.42, backgroundColor: "#000" },
   mediaImage: { width: "100%", height: "100%" },
