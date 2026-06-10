@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   MapPin,
-  Volume2,
   Users,
   QrCode,
   Compass,
@@ -26,7 +25,6 @@ import {
 
 import { SectionHome } from "./admin/SectionHome";
 import { SectionStops } from "./admin/SectionStops";
-import { SectionTextSpeech } from "./admin/SectionTextSpeech";
 import { SectionBackground } from "./admin/SectionBackground";
 import { SectionAccounts } from "./admin/SectionAccounts";
 import { SectionQR } from "./admin/SectionQR";
@@ -64,7 +62,6 @@ export const SECTION_META: Array<{
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
   // theme removed
   { key: "background", icon: ImageIcon, nl: "Achtergrond", en: "Background" },
-  { key: "textSpeech", icon: Volume2, nl: "Tekst & spraak", en: "Text & speech" },
   { key: "scavenger", icon: Compass, nl: "Speurtocht", en: "Scavenger hunt", disabled: true },
   { key: "battery", icon: Battery, nl: "Beacon batterij", en: "Beacon battery", disabled: true },
   { key: "stats", icon: BarChart3, nl: "Statistieken", en: "Statistics" },
@@ -219,14 +216,6 @@ export function AdminPanel({
       case "background":
         return (
           <SectionBackground
-            language={language}
-            settings={settings}
-            onChange={onUpdateSettings}
-          />
-        );
-      case "textSpeech":
-        return (
-          <SectionTextSpeech
             language={language}
             settings={settings}
             onChange={onUpdateSettings}

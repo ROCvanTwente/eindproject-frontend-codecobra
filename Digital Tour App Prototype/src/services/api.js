@@ -522,3 +522,15 @@ export async function updateStopMedia(id, mediaUrl) {
   return await response.json();
 }
 
+export async function getNumberScansQrCode(id) {
+  const response = await fetch(`${API_BASE_URL}/qrcode/statistics/${id}`, {
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+  if (!response.ok) {    const errorText = await response.text();
+    throw new Error(errorText || "Failed to fetch QR code statistics");
+  }
+  return await response.json();
+}
+
