@@ -84,7 +84,6 @@ export function SectionAccounts({
           return acc;
         }, {} as Record<string, AdminAccount["role"]>),
       );
-      onChange({ accounts: loadedAccounts }, { action: "load-accounts", target: "all" });
     } catch (err) {
       setErrorModal(
         language === "nl"
@@ -233,7 +232,7 @@ export function SectionAccounts({
       await updateAccountRole(acc.id, nextRole);
       onChange(
         {},
-        { action: "update-role", target: `${acc.username} -> ${nextRole}` },
+        { action: "update-role", target: `${acc.username} | ${acc.role} -> ${nextRole}` },
       );
       await loadAccounts();
       setSuccessModal(

@@ -12,6 +12,7 @@ import {
   Home,
   Menu,
   X,
+  History,
 } from "lucide-react";
 import { Stop, Language, SectionKey } from "../types";
 import { StopForm } from "./StopForm";
@@ -29,6 +30,7 @@ import { SectionMedia } from "./admin/SectionMedia";
 import { SectionManualAdmin } from "./admin/SectionManualAdmin";
 import { SectionFloorPlan } from "./admin/SectionFloorPlan";
 import { createTourStop, saveTourStop } from "../../services/api";
+import { SectionHistory } from "./admin/SectionHistory";
 // Removed: SectionTheme, SectionScavenger, SectionManualUser, SectionBattery
 
 interface AdminPanelProps {
@@ -56,6 +58,7 @@ export const SECTION_META: Array<{
   { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
   { key: "stats", icon: BarChart3, nl: "Statistieken", en: "Statistics" },
+  { key: "history", icon: History, nl: "History", en: "History" },
   { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
   { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
 ];
@@ -245,6 +248,14 @@ export function AdminPanel({
             language={language}
             stops={stops}
             onUpdateStops={onUpdateStops}
+          />
+        );
+        case "history":
+        return (
+          <SectionHistory
+            language={language}
+            settings={settings}
+            onChange={onUpdateSettings}
           />
         );
       case "manualAdmin":
