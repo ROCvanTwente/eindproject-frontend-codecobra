@@ -1,7 +1,18 @@
-import { getAuthHeaders } from "./authApi";
+import { getAuthHeaders, getSessionData } from "./authApi";
+import { logUserAction } from "./auditLogger";
 
 const API_BASE_URL =
-  import.meta.env?.VITE_API_BASE_URL ?? "http://localhost:5000/api";
+  import.meta.env?.VITE_API_BASE_URL ?? "http://localhost:5018/api";
+
+function logApiMutation(action, target, metadata = undefined) {
+  const actor = getSessionData()?.username ?? "anoniem";
+  void logUserAction({
+    actor,
+    action,
+    target,
+    metadata,
+  });
+}
 
 function toApiRoot(url) {
   return url.replace(/\/$/, "").replace(/\/api$/, "");
@@ -319,8 +330,11 @@ export async function uploadMedia(file, qrCodeId) {
     const errorText = await response.text();
     throw new Error(errorText || "Failed to upload media");
   }
-
-  return await response.json();
+  const uploaded = await response.json();
+  logApiMutation("upload-media", file?.name ?? "file", {
+    qrCodeId: qrCodeId ?? null,
+  });
+  return uploaded;
 }
 
 export async function updateStopMedia(id, mediaUrl) {
@@ -346,7 +360,10 @@ export async function updateStopMedia(id, mediaUrl) {
     const errorText = await response.text();
     throw new Error(errorText || "Failed to update stop media");
   }
-
-  return await response.json();
+  const updated = await response.json();
+  logApiMutation("update-stop-media", `#${id}`, {
+    hasMedia: Boolean(normalizedMediaUrl),
+  });
+  return updated;
 }
 
