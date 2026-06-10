@@ -12,9 +12,10 @@ function logApiMutation(action, target, metadata = undefined) {
     target,
     metadata,
   });
-const LANDING_URL_STORAGE_KEY = "admin_landing_page_url";
-const LANDING_URL_API_MODE_KEY = "admin_landing_url_api_mode";
-let landingUrlApiMode = "unknown";
+  const LANDING_URL_STORAGE_KEY = "admin_landing_page_url";
+  const LANDING_URL_API_MODE_KEY = "admin_landing_url_api_mode";
+  let landingUrlApiMode = "unknown";
+}
 
 function toApiRoot(url) {
   return url.replace(/\/$/, "").replace(/\/api$/, "");
@@ -471,7 +472,7 @@ export async function updateTourStop(id, formData) {
   const response = await fetch(`${API_BASE_URL}/stops/${id}`, {
     method: "PUT",
     headers: {
-      ...getAuthHeaders(),    
+      ...getAuthHeaders(),
     },
     body: formData,
   });
@@ -544,7 +545,8 @@ export async function getNumberScansQrCode(id) {
       ...getAuthHeaders(),
     },
   });
-  if (!response.ok) {    const errorText = await response.text();
+  if (!response.ok) {
+    const errorText = await response.text();
     throw new Error(errorText || "Failed to fetch QR code statistics");
   }
   return await response.json();
