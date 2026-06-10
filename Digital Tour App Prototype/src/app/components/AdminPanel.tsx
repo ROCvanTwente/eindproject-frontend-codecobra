@@ -7,10 +7,8 @@ import {
   Compass,
   BarChart3,
   Images,
-  History,
   BookOpen,
   BookUser,
-  Battery,
   Home,
   Menu,
   X,
@@ -30,7 +28,6 @@ import { SectionAccounts } from "./admin/SectionAccounts";
 import { SectionQR } from "./admin/SectionQR";
 import { SectionStats } from "./admin/SectionStats";
 import { SectionMedia } from "./admin/SectionMedia";
-import { SectionHistory } from "./admin/SectionHistory";
 import { SectionManualAdmin } from "./admin/SectionManualAdmin";
 import { SectionFloorPlan } from "./admin/SectionFloorPlan";
 import { createTourStop, saveTourStop } from "../../services/api";
@@ -62,10 +59,7 @@ export const SECTION_META: Array<{
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
   // theme removed
   { key: "background", icon: ImageIcon, nl: "Achtergrond", en: "Background" },
-  { key: "scavenger", icon: Compass, nl: "Speurtocht", en: "Scavenger hunt", disabled: true },
-  { key: "battery", icon: Battery, nl: "Beacon batterij", en: "Beacon battery", disabled: true },
   { key: "stats", icon: BarChart3, nl: "Statistieken", en: "Statistics" },
-  { key: "history", icon: History, nl: "History", en: "History" },
   { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
   { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
 ];
@@ -263,14 +257,6 @@ export function AdminPanel({
             language={language}
             stops={stops}
             onUpdateStops={onUpdateStops}
-          />
-        );
-      case "history":
-        return (
-          <SectionHistory
-            language={language}
-            settings={settings}
-            onChange={onUpdateSettings}
           />
         );
       case "manualAdmin":
