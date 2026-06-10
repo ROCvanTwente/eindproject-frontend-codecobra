@@ -16,6 +16,7 @@ import { check, openSettings, PERMISSIONS, request, RESULTS } from "react-native
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language } from "../types";
+import { recordScan } from "../data/api";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
@@ -50,6 +51,8 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
 
   if (stop) {
     setScanning(false);
+    recordScan(scannedValue);
+    // Instantly transition screens for an ideal user experience
     navigation.push("StopDetail", { stopId: stop.id, language });
   } else {
     Alert.alert(
