@@ -12,7 +12,6 @@ import {
   Home,
   Menu,
   X,
-  Image as ImageIcon,
 } from "lucide-react";
 import { Stop, Language, SectionKey } from "../types";
 import { StopForm } from "./StopForm";
@@ -23,7 +22,6 @@ import {
 
 import { SectionHome } from "./admin/SectionHome";
 import { SectionStops } from "./admin/SectionStops";
-import { SectionBackground } from "./admin/SectionBackground";
 import { SectionAccounts } from "./admin/SectionAccounts";
 import { SectionQR } from "./admin/SectionQR";
 import { SectionStats } from "./admin/SectionStats";
@@ -57,8 +55,6 @@ export const SECTION_META: Array<{
   { key: "floorPlan", icon: Compass, nl: "Plattegrond", en: "Floor plan" },
   { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
-  // theme removed
-  { key: "background", icon: ImageIcon, nl: "Achtergrond", en: "Background" },
   { key: "stats", icon: BarChart3, nl: "Statistieken", en: "Statistics" },
   { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
   { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
@@ -205,14 +201,6 @@ export function AdminPanel({
               });
               setIsCreating(true);
             }}
-          />
-        );
-      case "background":
-        return (
-          <SectionBackground
-            language={language}
-            settings={settings}
-            onChange={onUpdateSettings}
           />
         );
       case "accounts":
