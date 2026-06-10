@@ -10,14 +10,8 @@ const GRID_W = Math.ceil(TARGET_W / WALK_STEP);
 const GRID_H = Math.ceil(TARGET_H / WALK_STEP);
 
 async function generateWalkabilityGrid() {
-  console.log('Loading reference image with green/red walkability zones...');
-
   const image = sharp('src/imports/plattegrondreferentieV4.0.png');
   const metadata = await image.metadata();
-
-  console.log(`Image dimensions: ${metadata.width} x ${metadata.height}`);
-  console.log(`Target dimensions: ${TARGET_W} x ${TARGET_H}`);
-  console.log(`Grid size: ${GRID_W} x ${GRID_H} (step: ${WALK_STEP}px)`);
 
   // Get raw pixel data
   const { data, info } = await image
@@ -28,8 +22,6 @@ async function generateWalkabilityGrid() {
   // Scale factors to map grid coordinates to image pixels
   const scaleX = info.width / TARGET_W;
   const scaleY = info.height / TARGET_H;
-
-  console.log(`Scale factors: ${scaleX.toFixed(3)} x ${scaleY.toFixed(3)}`);
 
   // Generate walkability grid
   const grid = new Uint8Array(GRID_W * GRID_H);
@@ -65,9 +57,6 @@ async function generateWalkabilityGrid() {
       }
     }
   }
-
-  console.log(`Green (walkable) cells: ${walkableCount} / ${GRID_W * GRID_H} (${(walkableCount / (GRID_W * GRID_H) * 100).toFixed(1)}%)`);
-  console.log(`Red (obstacle) cells: ${redCount} / ${GRID_W * GRID_H} (${(redCount / (GRID_W * GRID_H) * 100).toFixed(1)}%)`);
 
   // Encode to base64 (direct byte encoding, 0 = walkable, 1 = wall)
   const base64 = Buffer.from(grid).toString('base64');
@@ -202,9 +191,7 @@ export function cellToPixel([gx, gy]: [number, number]): {
 }
 `;
 
-  console.log('\nWriting to src/app/data/walkability.ts...');
   writeFileSync('src/app/data/walkability.ts', code);
-  console.log('Done!');
 }
 
 generateWalkabilityGrid().catch(console.error);

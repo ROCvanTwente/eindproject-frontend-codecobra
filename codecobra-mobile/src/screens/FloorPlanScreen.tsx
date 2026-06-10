@@ -12,7 +12,6 @@ import {
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import Svg, { Circle, Text as SvgText, Image as SvgImage } from "react-native-svg";
-import Orientation from 'react-native-orientation-locker';
 
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
@@ -29,20 +28,11 @@ export function FloorPlanScreen({ navigation, route }: Props) {
   const { stops: contextStops } = useAppContext();
   const language: Language = route.params.language;
 
-  // useWindowDimensions automatically updates when the phone rotates
-  const { width } = useWindowDimensions();
+  // 1. In portrait, width is the short side, height is the long side
+  const { width, height } = useWindowDimensions();
 
   const [stopsData, setStopsData] = useState(contextStops ?? []);
   const [loading, setLoading] = useState<boolean>(false);
-
-  // 1. Handle Orientation Locking
-  useEffect(() => {
-    Orientation.lockToLandscape(); // Force horizontal
-
-    return () => {
-      Orientation.lockToPortrait(); // Back to vertical when leaving
-    };
-  }, []);
 
   useEffect(() => {
     let mounted = true;
@@ -61,9 +51,10 @@ export function FloorPlanScreen({ navigation, route }: Props) {
     return () => { mounted = false; };
   }, []);
 
-  // 2. Dynamic Map Scaling
-  // In landscape, 'width' is the long side.
-  const MAP_W = width - 40;
+  // 2. Dynamic Map Scaling (Using screen height to dictate the landscape map width)
+  // Since the map is rotated 90 deg, its visual width will be limited by the screen's available height
+  const AVAILABLE_HEIGHT = height - 120; // rough estimate leaving space for header
+  const MAP_W = AVAILABLE_HEIGHT; 
   const MAP_H = MAP_W * (704 / 1531);
 
   const scaleX = (x: number) => (x / 1531) * MAP_W;
@@ -73,10 +64,10 @@ export function FloorPlanScreen({ navigation, route }: Props) {
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Reduced header height for landscape */}
+      {/* Header stays locked in normal portrait positioning */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
-          <Ionicons name="arrow-back" size={20} color="#fff" />
+          <Ionicons name="arrow-back" size={24} color="#fff" />
         </TouchableOpacity>
         <Text style={styles.headerTitle}>
           {language === "nl" ? "Plattegrond De Gieterij" : "Floor plan De Gieterij"}
@@ -84,43 +75,43 @@ export function FloorPlanScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.mapContainer}>
+        {/* Container handles centering the rotated element */}
+        <View style={[styles.mapContainer, { width: MAP_H, height: MAP_W }]}>
           {loading ? (
-            <View style={{ width: MAP_W, height: MAP_H, alignItems: "center", justifyContent: "center" }}>
-              <ActivityIndicator size="large" color={PRIMARY} />
-            </View>
+            <ActivityIndicator size="large" color={PRIMARY} />
           ) : (
-            <Svg width={MAP_W} height={MAP_H}>
-              <SvgImage
-                href={FloorPlanImage}
-                width={MAP_W}
-                height={MAP_H}
-                preserveAspectRatio="xMidYMid slice"
-              />
+            // The actual map is styled with a 90-degree transformation
+            <View style={[styles.rotatedWrapper, { width: MAP_W, height: MAP_H }]}>
+              <Svg width={MAP_W} height={MAP_H}>
+                <SvgImage
+                  href={FloorPlanImage}
+                  width={MAP_W}
+                  height={MAP_H}
+                  preserveAspectRatio="xMidYMid slice"
+                />
 
-              {/* BLUE DOTTED LINE SECTION REMOVED */}
-
-              {positionedStops.map((stop) => {
-                const cx = scaleX(stop.positionX!);
-                const cy = scaleY(stop.positionY!);
-                const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
-                return (
-                  <React.Fragment key={stop.id}>
-                    <Circle cx={cx} cy={cy} r={12} fill={PRIMARY} />
-                    <SvgText
-                      x={cx}
-                      y={cy + 4}
-                      textAnchor="middle"
-                      fill="#fff"
-                      fontSize={10}
-                      fontWeight="bold"
-                    >
-                      {stopNumber}
-                    </SvgText>
-                  </React.Fragment>
-                );
-              })}
-            </Svg>
+                {positionedStops.map((stop) => {
+                  const cx = scaleX(stop.positionX!);
+                  const cy = scaleY(stop.positionY!);
+                  const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
+                  return (
+                    <React.Fragment key={stop.id}>
+                      <Circle cx={cx} cy={cy} r={12} fill={PRIMARY} />
+                      <SvgText
+                        x={cx}
+                        y={cy + 4}
+                        textAnchor="middle"
+                        fill="#fff"
+                        fontSize={10}
+                        fontWeight="bold"
+                      >
+                        {stopNumber}
+                      </SvgText>
+                    </React.Fragment>
+                  );
+                })}
+              </Svg>
+            </View>
           )}
         </View>
 
@@ -129,27 +120,6 @@ export function FloorPlanScreen({ navigation, route }: Props) {
             {language === "nl" ? "Geen stops met kaartpositie beschikbaar." : "No stops with map positions available."}
           </Text>
         )}
-
-        {/* Legend */}
-        <View style={styles.legendGrid}>
-          {positionedStops.map((stop) => {
-            const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
-            return (
-              <TouchableOpacity
-                key={stop.id}
-                style={styles.legendItem}
-                onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
-              >
-                <View style={styles.legendBadge}>
-                  <Text style={styles.legendBadgeText}>{stopNumber}</Text>
-                </View>
-                <Text style={styles.legendLabel} numberOfLines={1}>
-                  {language === "nl" ? stop.titleNl : stop.titleEn}
-                </Text>
-              </TouchableOpacity>
-            );
-          })}
-        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -161,7 +131,7 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
+    paddingVertical: 12, // slightly increased for standard portrait header look
     paddingHorizontal: 16,
     gap: 12,
   },
@@ -171,44 +141,26 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   headerTitle: { fontSize: 18, color: "#fff", fontWeight: "700" },
-  content: { padding: 10 },
+  content: { 
+    flex: 1, 
+    justifyContent: 'center', 
+    alignItems: 'center',
+    padding: 10 
+  },
   mapContainer: {
-    borderRadius: 12,
+    justifyContent: 'center',
+    alignItems: 'center',
     overflow: "hidden",
-    alignSelf: 'center',
     backgroundColor: '#fff',
+    borderRadius: 12,
     elevation: 3,
     shadowColor: '#000',
     shadowOffset: { width: 0, height: 2 },
     shadowOpacity: 0.1,
     shadowRadius: 4,
-    marginBottom: 15,
   },
-  legendGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 8,
-    justifyContent: 'center'
+  rotatedWrapper: {
+    // This flips the map layout on its side inside the wrapper box
+    transform: [{ rotate: '270deg' }],
   },
-  legendItem: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "#fff",
-    borderRadius: 10,
-    padding: 8,
-    width: '31%', // Show 3 items per row in landscape
-    borderWidth: 1,
-    borderColor: "#e5e7eb",
-    gap: 8,
-  },
-  legendBadge: {
-    width: 24,
-    height: 24,
-    borderRadius: 12,
-    backgroundColor: PRIMARY,
-    alignItems: "center",
-    justifyContent: "center",
-  },
-  legendBadgeText: { color: "#fff", fontWeight: "700", fontSize: 12 },
-  legendLabel: { flex: 1, fontSize: 12, color: "#111" },
 });

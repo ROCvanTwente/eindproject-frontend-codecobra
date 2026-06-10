@@ -10,8 +10,13 @@ import { AdminPanel } from "./components/AdminPanel";
 import { LoginScreen } from "./components/LoginScreen";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAllTourStops, mapTourStopResponse } from "../services/api";
-import { getCurrentUserInfo } from "../services/authApi";
 import { flushPendingAuditLogs, logUserAction } from "../services/auditLogger";
+import {
+  clearSessionData,
+  clearTokens,
+  getCurrentUserInfo,
+} from "../services/authApi";
+
 
 type View = "login" | "register" | "admin";
 
@@ -82,7 +87,16 @@ export default function App() {
     (async () => {
       if (!settings.currentSession) return;
       const currentUser = await getCurrentUserInfo();
-      if (!currentUser || cancelled) return;
+      if (cancelled) return;
+
+      if (!currentUser) {
+        clearTokens();
+        clearSessionData();
+        handleUpdateSettings({ currentSession: null });
+        setView("login");
+        navigate("/login", { replace: true });
+        return;
+      }
 
       const resolvedRole = currentUser?.isAdmin ? "Admin" : "Editor";
       if (settings.currentSession.role !== resolvedRole) {
@@ -98,7 +112,7 @@ export default function App() {
     return () => {
       cancelled = true;
     };
-  }, [settings.currentSession?.username]);
+  }, [navigate, settings.currentSession?.username]);
 
   useEffect(() => {
     document.documentElement.style.setProperty(

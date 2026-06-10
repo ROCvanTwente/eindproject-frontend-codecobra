@@ -23,8 +23,8 @@ export function StopForm({
   isCreating,
 }: StopFormProps) {
   const hugeInputClass =
-    "w-full border-2 border-gray-300 rounded-lg p-6 text-2xl leading-tight focus:border-[#0066B3] focus:outline-none";
-  const hugeTextAreaClass = `${hugeInputClass} min-h-[320px] leading-relaxed`;
+    "w-full border-2 border-gray-300 rounded-lg px-3 py-2 text-base leading-6 focus:border-[#0066B3] focus:outline-none";
+  const hugeTextAreaClass = `${hugeInputClass} min-h-[140px] leading-6`;
 
   const [formData, setFormData] = useState<Stop>(stop);
   const svgRef = useRef<SVGSVGElement | null>(null);

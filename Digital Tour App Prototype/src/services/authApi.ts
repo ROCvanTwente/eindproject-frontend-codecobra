@@ -1,6 +1,6 @@
 const API_BASE_URL =
   (import.meta as any).env?.VITE_AUTH_BASE_URL ??
-  "http://localhost:5018";
+  "https://digitalworkplacetestapi.runasp.net";
 
 const TOKEN_KEY = "accessToken";
 const LEGACY_TOKEN_KEY = "token";
@@ -63,8 +63,6 @@ export async function loginUser(email: string, password: string) {
   const data = await response.json().catch(() => ({}));
 
   if (response.ok) {
-    console.log("Login response data:", data);
-
     if (data.accessToken) {
       setAccessToken(data.accessToken);
     }
@@ -81,19 +79,16 @@ export async function loginUser(email: string, password: string) {
 export function setSessionData(username: string, role: string) {
   const session = { username, role };
   localStorage.setItem("currentSession", JSON.stringify(session));
-  console.log("Session saved:", session);
 }
 
 export function getSessionData() {
   const session = localStorage.getItem("currentSession");
   const parsed = session ? JSON.parse(session) : null;
-  console.log("Session retrieved:", parsed);
   return parsed;
 }
 
 export function clearSessionData() {
   localStorage.removeItem("currentSession");
-  console.log("Session cleared");
 }
 
 export async function registerUser(username: string, password: string) {

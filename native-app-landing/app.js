@@ -30,8 +30,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
         // Trigger file download
         const downloadLink = document.createElement('a');
-        downloadLink.href = 'app-release.apk';
-        downloadLink.download = 'Rondleiding-App.apk';
+        downloadLink.href = './downloads/app-release.apk';
+        downloadLink.download = 'Rondleiding-App-RocvanTwente-v1.0.0.apk';
         document.body.appendChild(downloadLink);
         downloadLink.click();
         document.body.removeChild(downloadLink);

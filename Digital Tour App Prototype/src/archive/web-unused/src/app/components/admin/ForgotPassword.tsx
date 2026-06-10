@@ -43,14 +43,6 @@ export function ForgotPassword({
       return;
     }
 
-    // Simulate email sending (in real app, this would call backend)
-    console.log(
-      `[DEMO] Password reset email sent to: ${account.email} for user: ${username}`,
-    );
-    console.log(
-      `[DEMO] Reset link: https://gieterij-app.nl/reset-password?token=demo-token-${Date.now()}`,
-    );
-
     setSent(true);
   };
 
@@ -98,8 +90,8 @@ export function ForgotPassword({
             </button>
             <p className="text-xs text-gray-400 mt-4">
               {language === "nl"
-                ? "(Demo: controleer de browser console voor de reset-link)"
-                : "(Demo: check browser console for reset link)"}
+                ? "(Demo: reset-link wordt normaal via e-mail verzonden)"
+                : "(Demo: reset link is normally sent by email)"}
             </p>
           </div>
         </div>

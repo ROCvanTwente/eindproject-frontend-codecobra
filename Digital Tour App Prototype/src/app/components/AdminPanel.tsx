@@ -2,21 +2,16 @@ import { useEffect, useState } from "react";
 import {
   ArrowLeft,
   MapPin,
-  Volume2,
-  LogIn,
   Users,
   QrCode,
   Compass,
   BarChart3,
   Images,
-  History,
   BookOpen,
   BookUser,
-  Battery,
   Home,
   Menu,
   X,
-  Image as ImageIcon,
 } from "lucide-react";
 import { Stop, Language, SectionKey } from "../types";
 import { StopForm } from "./StopForm";
@@ -27,15 +22,11 @@ import {
 
 import { SectionHome } from "./admin/SectionHome";
 import { SectionStops } from "./admin/SectionStops";
-import { SectionTextSpeech } from "./admin/SectionTextSpeech";
-import { SectionBackground } from "./admin/SectionBackground";
 import { SectionAccounts } from "./admin/SectionAccounts";
 import { SectionQR } from "./admin/SectionQR";
 import { SectionStats } from "./admin/SectionStats";
 import { SectionMedia } from "./admin/SectionMedia";
-import { SectionHistory } from "./admin/SectionHistory";
 import { SectionManualAdmin } from "./admin/SectionManualAdmin";
-import { SectionStart } from "./admin/SectionStart";
 import { SectionFloorPlan } from "./admin/SectionFloorPlan";
 import { createTourStop, saveTourStop } from "../../services/api";
 // Removed: SectionTheme, SectionScavenger, SectionManualUser, SectionBattery
@@ -64,14 +55,7 @@ export const SECTION_META: Array<{
   { key: "floorPlan", icon: Compass, nl: "Plattegrond", en: "Floor plan" },
   { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
   { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
-  // theme removed
-  { key: "background", icon: ImageIcon, nl: "Achtergrond", en: "Background" },
-  { key: "textSpeech", icon: Volume2, nl: "Tekst & spraak", en: "Text & speech" },
-  { key: "start", icon: LogIn, nl: "Beginscherm", en: "Start screen" },
-  { key: "scavenger", icon: Compass, nl: "Speurtocht", en: "Scavenger hunt", disabled: true },
-  { key: "battery", icon: Battery, nl: "Beacon batterij", en: "Beacon battery", disabled: true },
   { key: "stats", icon: BarChart3, nl: "Statistieken", en: "Statistics" },
-  { key: "history", icon: History, nl: "History", en: "History" },
   { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
   { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
 ];
@@ -219,22 +203,6 @@ export function AdminPanel({
             }}
           />
         );
-      case "background":
-        return (
-          <SectionBackground
-            language={language}
-            settings={settings}
-            onChange={onUpdateSettings}
-          />
-        );
-      case "textSpeech":
-        return (
-          <SectionTextSpeech
-            language={language}
-            settings={settings}
-            onChange={onUpdateSettings}
-          />
-        );
       case "accounts":
         if (!isAdminUser) {
           return (
@@ -279,25 +247,9 @@ export function AdminPanel({
             onUpdateStops={onUpdateStops}
           />
         );
-      case "history":
-        return (
-          <SectionHistory
-            language={language}
-            settings={settings}
-            onChange={onUpdateSettings}
-          />
-        );
       case "manualAdmin":
         return (
           <SectionManualAdmin
-            language={language}
-            settings={settings}
-            onChange={onUpdateSettings}
-          />
-        );
-      case "start":
-        return (
-          <SectionStart
             language={language}
             settings={settings}
             onChange={onUpdateSettings}
