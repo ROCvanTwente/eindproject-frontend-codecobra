@@ -1,10 +1,16 @@
 import { useEffect, useState } from "react";
-import { AdminSettings, loadSettings, saveSettings } from "./data/settings";
+import {
+  addHistory,
+  AdminSettings,
+  loadSettings,
+  saveSettings,
+} from "./data/settings";
 import { Language, Stop, UserSession } from "./types";
 import { AdminPanel } from "./components/AdminPanel";
 import { LoginScreen } from "./components/LoginScreen";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAllTourStops, mapTourStopResponse } from "../services/api";
+import { flushPendingAuditLogs, logUserAction } from "../services/auditLogger";
 import {
   clearSessionData,
   clearTokens,
@@ -29,15 +35,31 @@ export default function App() {
     logAction?: { action: string; target: string },
   ) => {
     setSettings((prev) => {
-      const next = { ...prev, ...patch };
-      // if (logAction) {
-      //   const actor = prev.currentSession?.username ?? "anoniem";
-      //   next = addHistory(next, actor, logAction.action, logAction.target);
-      // }
+      let next = { ...prev, ...patch };
+      if (logAction) {
+        const actor =
+          patch.currentSession?.username ??
+          prev.currentSession?.username ??
+          "anoniem";
+        next = addHistory(next, actor, logAction.action, logAction.target);
+        void logUserAction({
+          actor,
+          action: logAction.action,
+          target: logAction.target,
+          metadata: {
+            role: prev.currentSession?.role ?? patch.currentSession?.role ?? null,
+          },
+        });
+      }
       saveSettings(next);
       return next;
     });
   };
+
+  useEffect(() => {
+    if (!settings.currentSession) return;
+    void flushPendingAuditLogs();
+  }, [settings.currentSession?.username]);
 
   useEffect(() => {
     let cancelled = false;
@@ -123,7 +145,10 @@ export default function App() {
   };
 
   const goToAdmin = (session: UserSession) => {
-    handleUpdateSettings({ currentSession: session });
+    handleUpdateSettings(
+      { currentSession: session },
+      { action: "login", target: session.username },
+    );
     setView("admin");
     navigate("/admin", { replace: true });
   };

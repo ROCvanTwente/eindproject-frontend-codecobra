@@ -1,10 +1,21 @@
-import { getAuthHeaders } from "./authApi";
+import { getAuthHeaders, getSessionData } from "./authApi";
+import { logUserAction } from "./auditLogger";
 
 const API_BASE_URL =
-  import.meta.env?.VITE_API_BASE_URL ?? "https://digitalworkplacetestapi.runasp.net/api";
-const LANDING_URL_STORAGE_KEY = "admin_landing_page_url";
-const LANDING_URL_API_MODE_KEY = "admin_landing_url_api_mode";
-let landingUrlApiMode = "unknown";
+  import.meta.env?.VITE_API_BASE_URL ?? "https://digitalworkplacetestapi.runasp.net";
+
+function logApiMutation(action, target, metadata = undefined) {
+  const actor = getSessionData()?.username ?? "anoniem";
+  void logUserAction({
+    actor,
+    action,
+    target,
+    metadata,
+  });
+  const LANDING_URL_STORAGE_KEY = "admin_landing_page_url";
+  const LANDING_URL_API_MODE_KEY = "admin_landing_url_api_mode";
+  let landingUrlApiMode = "unknown";
+}
 
 function toApiRoot(url) {
   return url.replace(/\/$/, "").replace(/\/api$/, "");
@@ -461,7 +472,7 @@ export async function updateTourStop(id, formData) {
   const response = await fetch(`${API_BASE_URL}/stops/${id}`, {
     method: "PUT",
     headers: {
-      ...getAuthHeaders(),    
+      ...getAuthHeaders(),
     },
     body: formData,
   });
@@ -491,8 +502,11 @@ export async function uploadMedia(file, qrCodeId) {
     const errorText = await response.text();
     throw new Error(errorText || "Failed to upload media");
   }
-
-  return await response.json();
+  const uploaded = await response.json();
+  logApiMutation("upload-media", file?.name ?? "file", {
+    qrCodeId: qrCodeId ?? null,
+  });
+  return uploaded;
 }
 
 export async function updateStopMedia(id, mediaUrl) {
@@ -518,8 +532,11 @@ export async function updateStopMedia(id, mediaUrl) {
     const errorText = await response.text();
     throw new Error(errorText || "Failed to update stop media");
   }
-
-  return await response.json();
+  const updated = await response.json();
+  logApiMutation("update-stop-media", `#${id}`, {
+    hasMedia: Boolean(normalizedMediaUrl),
+  });
+  return updated;
 }
 
 export async function getNumberScansQrCode(id) {
@@ -528,7 +545,8 @@ export async function getNumberScansQrCode(id) {
       ...getAuthHeaders(),
     },
   });
-  if (!response.ok) {    const errorText = await response.text();
+  if (!response.ok) {
+    const errorText = await response.text();
     throw new Error(errorText || "Failed to fetch QR code statistics");
   }
   return await response.json();
