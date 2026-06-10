@@ -1,4 +1,3 @@
-import { Battery } from "lucide-react";
 import { Language, SectionKey } from "../../types";
 import { AdminSettings } from "../../data/settings";
 
@@ -23,10 +22,6 @@ export function SectionHome({
   sectionMeta,
   isAdminUser,
 }: Props) {
-  const lowBatteries = settings.beaconBatteries.filter(
-    (b) => b.batteryPct <= settings.batteryThresholdPct,
-  );
-
   return (
     <div>
       <h2 className="text-2xl font-bold mb-4">
