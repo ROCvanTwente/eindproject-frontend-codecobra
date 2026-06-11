@@ -6,8 +6,9 @@ import React, {
   useState,
   useMemo,
 } from "react";
-import { getAllStops } from "../data/api"; // Verwijder getAppConfig
-import { Stop } from "../types"; // Verwijder AppConfig uit imports
+import { getAllStops } from "../data/api";
+import { Stop } from "../types";
+import { RECEPTION_COORDINATES } from "../data/settings";
 
 // Verwijder AppConfig interface
 interface AppContextType {
@@ -29,34 +30,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     null,
   );
 
-  // Vaste receptie coördinaten
-  const receptionCoordinates = { x: 300, y: 450 };
+  const receptionCoordinates = RECEPTION_COORDINATES;
 
   useEffect(() => {
     let mounted = true;
     const loadData = async () => {
       try {
-        // const [stopsData, configData] = await Promise.all([ // Verwijderd Promise.all
-        //   getAllStops(),
-        //   getAppConfig(),
-        // ]);
-        const stopsData = await getAllStops(); // Haal alleen stops op
+        const stopsData = await getAllStops();
 
         if (mounted) {
           setStops(stopsData);
-          // setAppConfig(configData); // Verwijderd
-
-          // Zoek de receptie stop of gebruik een speciale ID
-          const receptionStop = stopsData.find(
-            (s) =>
-              s.positionX === receptionCoordinates.x &&
-              s.positionY === receptionCoordinates.y,
-          );
-          if (receptionStop) {
-            setCurrentStartStopId(receptionStop.id);
-          } else {
-            setCurrentStartStopId('reception_fixed');
-          }
+          setCurrentStartStopId('reception_fixed');
         }
       } catch (error) {
         console.error("Failed to fetch initial data:", error);

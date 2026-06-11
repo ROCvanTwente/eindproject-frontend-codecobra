@@ -1,6 +1,8 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { getAllStops } from "./api";
 
+export const RECEPTION_COORDINATES = { x: 300, y: 450 };
+
 export type SpeedKey = "slow" | "normal" | "fast";
 export type VoiceGender = "female" | "male";
 

@@ -54,7 +54,7 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
     recordScan(scannedValue);
     
     // NIEUWE LOGICA: Update de huidige startstop in de context
-    setCurrentStartStopId(stop.id);
+    setCurrentStartStopId(String(stop.id));
 
     // Instantly transition screens for an ideal user experience
     navigation.push("StopDetail", { stopId: stop.id, language });
