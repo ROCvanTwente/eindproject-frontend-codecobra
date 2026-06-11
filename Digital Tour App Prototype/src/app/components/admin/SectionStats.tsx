@@ -1,5 +1,7 @@
+import { useEffect, useState } from "react";
 import { Language, Stop } from "../../types";
 import { AdminSettings } from "../../data/settings";
+import { getNumberScansQrCode } from "../../../services/api"; // Adjust this path to where your api.js is located
 
 interface Props {
   language: Language;
@@ -7,28 +9,76 @@ interface Props {
   stops: Stop[];
 }
 
+// Define an interface for the API response structure
+interface QrStatsResponse {
+  id: number;
+  qrCodeId: number;
+  qrCode: null | any;
+  scanCount: number;
+  lastScannedAt: string;
+  createdAt: string;
+}
+
 export function SectionStats({
   language,
   settings,
   stops,
 }: Props) {
-  // Ensure we have a row for every stop, falling back to zeroes.
+  // State to hold the scan counts mapping: { [stopId]: scanCount }
+  const [scanCounts, setScanCounts] = useState<Record<string | number, number>>({});
+  const [loading, setLoading] = useState<boolean>(true);
+
+  // Fetch scan counts for all stops on component mount or when stops change
+  useEffect(() => {
+    async function fetchAllScanCounts() {
+      try {
+        setLoading(true);
+        
+        // Fire off API requests for all stops in parallel
+        const promises = stops.map(async (stop) => {
+          try {
+            const data: QrStatsResponse = await getNumberScansQrCode(stop.id);
+            return { stopId: stop.id, scanCount: data.scanCount };
+          } catch (error) {
+            console.error(`Failed to fetch stats for stop ${stop.id}:`, error);
+            return { stopId: stop.id, scanCount: 0 }; // Fallback to 0 if API fails for a stop
+          }
+        });
+
+        const results = await Promise.all(promises);
+
+        // Convert the array of results into a handy lookup object
+        const countsMap: Record<string | number, number> = {};
+        results.forEach((res) => {
+          countsMap[res.stopId] = res.scanCount;
+        });
+
+        setScanCounts(countsMap);
+      } catch (err) {
+        console.error("Error fetching QR statistics:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    if (stops.length > 0) {
+      fetchAllScanCounts();
+    }
+  }, [stops]);
+
+  // Ensure we have a row for every stop, prioritizing the new API scan counts
   const rows = stops.map((stop) => {
-    const stat = settings.visitStats.find(
-      (s) => s.stopId === stop.id,
-    );
+    const stat = settings.visitStats.find((s) => s.stopId === stop.id);
     return {
       stop,
-      visits: stat?.visits ?? 0,
+      // Fallback order: API scanCount -> settings fallback -> 0
+      visits: scanCounts[stop.id] ?? stat?.visits ?? 0,
       totalDurationSec: stat?.totalDurationSec ?? 0,
     };
   });
 
   const totalVisits = rows.reduce((a, r) => a + r.visits, 0);
-  const totalDuration = rows.reduce(
-    (a, r) => a + r.totalDurationSec,
-    0,
-  );
+  const totalDuration = rows.reduce((a, r) => a + r.totalDurationSec, 0);
   const maxVisits = Math.max(1, ...rows.map((r) => r.visits));
 
   return (
@@ -38,8 +88,8 @@ export function SectionStats({
       </h2>
       <p className="text-gray-600 mb-4">
         {language === "nl"
-          ? "Overzicht van hoe vaak elke stop is bezocht (could-have)."
-          : "Overview of how often each stop has been visited (could-have)."}
+          ? "Overzicht van hoe vaak elke stop is bezocht."
+          : "Overview of how often each stop has been visited."}
       </p>
 
       <div className="grid grid-cols-2 gap-3 mb-6">
@@ -89,7 +139,7 @@ export function SectionStats({
         ))}
       </div>
 
-      {totalVisits === 0 && (
+      {!loading && totalVisits === 0 && (
         <p className="text-gray-500 text-center py-6 text-sm">
           {language === "nl"
             ? "Nog geen bezoekersdata. Statistieken verschijnen zodra bezoekers de rondleiding hebben gevolgd."

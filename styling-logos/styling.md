@@ -115,7 +115,7 @@ Voor alle uitingen geldt vaste regels:
 
 ### Het Logo van ROC van Twente
 
-![RVT Logo](styling-logo's/rvt-logo_cmyk.png)
+![RVT Logo](styling-logos/rvt-logo_cmyk.png)
 
 Het logo van ROC van Twente is **onderverdeeld in twee regels tekst**, waarbij het woord 'Twente' als basis dient—de oorsprong en locatie van alle Twentse ROC's. Om de trots binnen de identiteit te benadrukken, is het woord **'van' in rood gezet**; de kleur van Twente.
 
@@ -127,7 +127,7 @@ Er is bewust gekozen om het logo **niet uit te schrijven als een lange regel**. 
 
 Wanneer contrast of ondergrond het niet toelaten om het gekleurde logo te gebruiken, is er een speciaal **diapositief logo** ontwikkeld. Hierbij wordt het woord 'van' in een raster gezet zodat het volledige logo in dezelfde kleur of in diapositief gebruikt kan worden.
 
-![RVT Diapositief Logo](styling-logo's/rvt-logo_diap.png)
+![RVT Diapositief Logo](styling-logos/rvt-logo_diap.png)
 
 ### Onderkast
 
@@ -180,9 +180,9 @@ Voor het plaatsen van vlakken, beelden of het uitsparen van ruimtes tussen vlakk
 
 #### Voorbeeld: Overlap van Kleurvlak over Beeld
 
-![Voorbeelden Grid](styling-logo's/voorbeelden-grid/voorbeeldengrid.png)
+![Voorbeelden Grid](styling-logos/voorbeelden-grid/voorbeeldengrid.png)
 
-![Voorbeelden Grid 2](styling-logo's/voorbeelden-grid/voorbeeldengrid2.png)
+![Voorbeelden Grid 2](styling-logos/voorbeelden-grid/voorbeeldengrid2.png)
 
 Kleurvlakken worden over het beeld **'vermenigvuldigd'**, waardoor de kleur doorwerkt op het beeld zonder dat de kleur flets wordt, of dat het beeld minder goed zichtbaar wordt.
 
@@ -264,10 +264,10 @@ De gehele verticale opzet is opgebouwd uit **stroken**, bestaand uit kleur of be
 
 | Pagina | Voorbeeld |
 |--------|-----------|
-| **Homepage** | ![Homepage Voorbeeld](styling-logo's/voorbeeldenWebsite/homepagevoorbeeld.png) |
-| **Landingpage** | ![Landingpage Voorbeeld](styling-logo's/voorbeeldenWebsite/landingpagevoorbeeld.png) |
-| **Detailpagina** | ![Detailpagina Voorbeeld](styling-logo's/voorbeeldenWebsite/detailpagina.png) |
-| **Website Grid** | ![Website Grid](styling-logo's/voorbeeldenWebsite/websiteVoorbeeldenGrid.png) |
+| **Homepage** | ![Homepage Voorbeeld](styling-logos/voorbeeldenWebsite/homepagevoorbeeld.png) |
+| **Landingpage** | ![Landingpage Voorbeeld](styling-logos/voorbeeldenWebsite/landingpagevoorbeeld.png) |
+| **Detailpagina** | ![Detailpagina Voorbeeld](styling-logos/voorbeeldenWebsite/detailpagina.png) |
+| **Website Grid** | ![Website Grid](styling-logos/voorbeeldenWebsite/websiteVoorbeeldenGrid.png) |
 
 ---
 
@@ -313,15 +313,15 @@ Het ROC van Twente bestaat **niet alleen uit jonge studenten**. Denk bijvoorbeel
 
 ## Aanvullende Bronnen
 
-- 📁 **Logo Bestanden**: [styling-logo's/](styling-logo's/)
+- 📁 **Logo Bestanden**: [styling-logos/](styling-logos/)
   - `rvt-logo_cmyk.png` — Standaard logo
   - `rvt-logo_cmyk.jpg` — Alternatief formaat
   - `rvt-logo_diap.png` — Diapositief logo (één kleur)
 
-- 📁 **Voorbeelden Grid**: [styling-logo's/voorbeelden-grid/](styling-logo's/voorbeelden-grid/)
+- 📁 **Voorbeelden Grid**: [styling-logos/voorbeelden-grid/](styling-logos/voorbeelden-grid/)
   - `voorbeeldengrid.png`, `voorbeeldengrid2.png` — Grid voorbeelden
 
-- 📁 **Website Voorbeelden**: [styling-logo's/voorbeeldenWebsite/](styling-logo's/voorbeeldenWebsite/)
+- 📁 **Website Voorbeelden**: [styling-logos/voorbeeldenWebsite/](styling-logos/voorbeeldenWebsite/)
   - `homepagevoorbeeld.png`
   - `landingpagevoorbeeld.png`
   - `detailpagina.png`

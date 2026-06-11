@@ -54,7 +54,7 @@ export function FloorPlanScreen({ navigation, route }: Props) {
   // 2. Dynamic Map Scaling (Using screen height to dictate the landscape map width)
   // Since the map is rotated 90 deg, its visual width will be limited by the screen's available height
   const AVAILABLE_HEIGHT = height - 120; // rough estimate leaving space for header
-  const MAP_W = AVAILABLE_HEIGHT;
+  const MAP_W = AVAILABLE_HEIGHT; 
   const MAP_H = MAP_W * (704 / 1531);
 
   const scaleX = (x: number) => (x / 1531) * MAP_W;
@@ -141,11 +141,11 @@ const styles = StyleSheet.create({
     padding: 6,
   },
   headerTitle: { fontSize: 18, color: "#fff", fontWeight: "700" },
-  content: {
-    flex: 1,
-    justifyContent: 'center',
+  content: { 
+    flex: 1, 
+    justifyContent: 'center', 
     alignItems: 'center',
-    padding: 10
+    padding: 10 
   },
   mapContainer: {
     justifyContent: 'center',
