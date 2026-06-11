@@ -1,49 +1,103 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
-import { Stop } from "../types";
-import { AdminSettings, DEFAULTS, loadSettings, loadStops, saveSettings, saveStops } from "../data/settings";
+// src/context/AppContext.tsx
+import React, {
+  createContext,
+  useContext,
+  useEffect,
+  useState,
+  useMemo,
+} from "react";
+import { getAllStops } from "../data/api"; // Verwijder getAppConfig
+import { Stop } from "../types"; // Verwijder AppConfig uit imports
 
-interface AppContextValue {
+// Verwijder AppConfig interface
+interface AppContextType {
   stops: Stop[];
-  setStops: (stops: Stop[]) => void;
-  settings: AdminSettings;
-  setSettings: (s: AdminSettings) => void;
   isLoading: boolean;
+  // appConfig: AppConfig | null; // Verwijderd
+  currentStartStopId: string | null;
+  setCurrentStartStopId: (stopId: string | null) => void;
+  receptionCoordinates: { x: number; y: number };
 }
 
-const AppContext = createContext<AppContextValue | null>(null);
+const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
-  const [stops, setStopsState] = useState<Stop[]>([]);
-  const [settings, setSettingsState] = useState<AdminSettings>(DEFAULTS);
+  const [stops, setStops] = useState<Stop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-
-useEffect(() => {
-  Promise.all([loadStops(), loadSettings()]).then(([s, cfg]) => {
-    setStopsState(s as Stop[]);
-    setSettingsState(cfg);
-    setIsLoading(false);
-  });
-}, []);
-
-  const setStops = (s: Stop[]) => {
-    setStopsState(s);
-    saveStops(s);
-  };
-
-  const setSettings = (s: AdminSettings) => {
-    setSettingsState(s);
-    saveSettings(s);
-  };
-
-  return (
-    <AppContext.Provider value={{ stops, setStops, settings, setSettings, isLoading }}>
-      {children}
-    </AppContext.Provider>
+  // const [appConfig, setAppConfig] = useState<AppConfig | null>(null); // Verwijderd
+  const [currentStartStopId, setCurrentStartStopId] = useState<string | null>(
+    null,
   );
+
+  // Vaste receptie coördinaten
+  const receptionCoordinates = { x: 300, y: 450 };
+
+  useEffect(() => {
+    let mounted = true;
+    const loadData = async () => {
+      try {
+        // const [stopsData, configData] = await Promise.all([ // Verwijderd Promise.all
+        //   getAllStops(),
+        //   getAppConfig(),
+        // ]);
+        const stopsData = await getAllStops(); // Haal alleen stops op
+
+        if (mounted) {
+          setStops(stopsData);
+          // setAppConfig(configData); // Verwijderd
+
+          // Zoek de receptie stop of gebruik een speciale ID
+          const receptionStop = stopsData.find(
+            (s) =>
+              s.positionX === receptionCoordinates.x &&
+              s.positionY === receptionCoordinates.y,
+          );
+          if (receptionStop) {
+            setCurrentStartStopId(receptionStop.id);
+          } else {
+            setCurrentStartStopId('reception_fixed');
+          }
+        }
+      } catch (error) {
+        console.error("Failed to fetch initial data:", error);
+      } finally {
+        if (mounted) {
+          setIsLoading(false);
+        }
+      }
+    };
+    loadData();
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  const value = useMemo(
+    () => ({
+      stops,
+      isLoading,
+      // appConfig, // Verwijderd
+      currentStartStopId,
+      setCurrentStartStopId,
+      receptionCoordinates,
+    }),
+    [
+      stops,
+      isLoading,
+      // appConfig, // Verwijderd
+      currentStartStopId,
+      setCurrentStartStopId,
+      receptionCoordinates,
+    ],
+  );
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
 
 export function useAppContext() {
-  const ctx = useContext(AppContext);
-  if (!ctx) throw new Error("useAppContext must be used inside AppProvider");
-  return ctx;
+  const context = useContext(AppContext);
+  if (context === undefined) {
+    throw new Error("useAppContext must be used within an AppProvider");
+  }
+  return context;
 }

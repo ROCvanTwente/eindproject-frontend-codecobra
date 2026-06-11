@@ -14,7 +14,7 @@ import { Camera, CameraType } from "react-native-camera-kit";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { check, openSettings, PERMISSIONS, request, RESULTS } from "react-native-permissions";
 import { RootStackParamList } from "../../App";
-import { useAppContext } from "../context/AppContext";
+import { useAppContext } from "../context/AppContext"; // Importeer useAppContext
 import { Language } from "../types";
 import { recordScan } from "../data/api";
 
@@ -24,7 +24,7 @@ const SECONDARY = "#0066B3";
 type Props = NativeStackScreenProps<RootStackParamList, "Scanner">;
 
 export function QRScannerScreen({ navigation, route }: Props) {
-  const { stops, isLoading } = useAppContext();
+  const { stops, isLoading, setCurrentStartStopId } = useAppContext(); // Haal setCurrentStartStopId op
   const [language, setLanguage] = useState<Language>(route.params.language);
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -52,6 +52,10 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
   if (stop) {
     setScanning(false);
     recordScan(scannedValue);
+    
+    // NIEUWE LOGICA: Update de huidige startstop in de context
+    setCurrentStartStopId(stop.id);
+
     // Instantly transition screens for an ideal user experience
     navigation.push("StopDetail", { stopId: stop.id, language });
   } else {

@@ -11,8 +11,7 @@ import {
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import Svg, { Circle, Text as SvgText, Image as SvgImage } from "react-native-svg";
-
+import Svg, { Circle, Text as SvgText, Image as SvgImage, G } from "react-native-svg"; // Importeer G
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language } from "../types";
@@ -25,10 +24,9 @@ const SECONDARY = "#0066B3";
 type Props = NativeStackScreenProps<RootStackParamList, "FloorPlan">;
 
 export function FloorPlanScreen({ navigation, route }: Props) {
-  const { stops: contextStops } = useAppContext();
+  const { stops: contextStops, currentStartStopId, receptionCoordinates } = useAppContext();
   const language: Language = route.params.language;
 
-  // 1. In portrait, width is the short side, height is the long side
   const { width, height } = useWindowDimensions();
 
   const [stopsData, setStopsData] = useState(contextStops ?? []);
@@ -48,12 +46,10 @@ export function FloorPlanScreen({ navigation, route }: Props) {
       }
     };
     load();
-    return () => { mounted = false; };
-  }, []);
+    // Re-fetch stops if contextStops change (e.g., after initial load or app state reset)
+  }, [contextStops]);
 
-  // 2. Dynamic Map Scaling (Using screen height to dictate the landscape map width)
-  // Since the map is rotated 90 deg, its visual width will be limited by the screen's available height
-  const AVAILABLE_HEIGHT = height - 120; // rough estimate leaving space for header
+  const AVAILABLE_HEIGHT = height - 120;
   const MAP_W = AVAILABLE_HEIGHT; 
   const MAP_H = MAP_W * (704 / 1531);
 
@@ -62,9 +58,19 @@ export function FloorPlanScreen({ navigation, route }: Props) {
 
   const positionedStops = stopsData.filter((s) => s.positionX != null && s.positionY != null);
 
+  // Functie om naar de PathfindingScreen te navigeren
+  const handleStopPress = (targetStopId: string) => {
+    // Bepaal het werkelijke start ID voor de route
+    const actualStartId = currentStartStopId || 'reception_fixed'; // Gebruik receptie als fallback
+
+    navigation.navigate("Pathfinding", {
+      startStopId: actualStartId,
+      endStopId: targetStopId,
+    });
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Header stays locked in normal portrait positioning */}
       <View style={styles.header}>
         <TouchableOpacity style={styles.backBtn} onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#fff" />
@@ -75,12 +81,10 @@ export function FloorPlanScreen({ navigation, route }: Props) {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Container handles centering the rotated element */}
         <View style={[styles.mapContainer, { width: MAP_H, height: MAP_W }]}>
           {loading ? (
             <ActivityIndicator size="large" color={PRIMARY} />
           ) : (
-            // The actual map is styled with a 90-degree transformation
             <View style={[styles.rotatedWrapper, { width: MAP_W, height: MAP_H }]}>
               <Svg width={MAP_W} height={MAP_H}>
                 <SvgImage
@@ -90,13 +94,44 @@ export function FloorPlanScreen({ navigation, route }: Props) {
                   preserveAspectRatio="xMidYMid slice"
                 />
 
+                {/* Teken de vaste receptie coördinaten als een aanklikbaar punt */}
+                {receptionCoordinates && (
+                  <G onPress={() => handleStopPress('reception_fixed')}>
+                    <Circle cx={scaleX(receptionCoordinates.x)} cy={scaleY(receptionCoordinates.y)} r={12} fill={currentStartStopId === 'reception_fixed' ? PRIMARY : SECONDARY} />
+                    <SvgText
+                      x={scaleX(receptionCoordinates.x)}
+                      y={scaleY(receptionCoordinates.y) + 4}
+                      textAnchor="middle"
+                      fill="#fff"
+                      fontSize={10}
+                      fontWeight="bold"
+                    >
+                      R
+                    </SvgText>
+                    <SvgText
+                      x={scaleX(receptionCoordinates.x)}
+                      y={scaleY(receptionCoordinates.y) - 18} // Positie boven de cirkel
+                      textAnchor="middle"
+                      fill={currentStartStopId === 'reception_fixed' ? PRIMARY : SECONDARY} // Kleur afhankelijk van of het de start is
+                      fontSize={12}
+                      fontWeight="bold"
+                    >
+                      Receptie
+                    </SvgText>
+                  </G>
+                )}
+
                 {positionedStops.map((stop) => {
                   const cx = scaleX(stop.positionX!);
                   const cy = scaleY(stop.positionY!);
                   const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
+                  
+                  // Bepaal de vulkleur: PRIMARY als het de huidige startstop is, anders SECONDARY
+                  const fillColor = stop.id === currentStartStopId ? PRIMARY : SECONDARY;
+
                   return (
-                    <React.Fragment key={stop.id}>
-                      <Circle cx={cx} cy={cy} r={12} fill={PRIMARY} />
+                    <G key={stop.id} onPress={() => handleStopPress(stop.id)}>
+                      <Circle cx={cx} cy={cy} r={12} fill={fillColor} />
                       <SvgText
                         x={cx}
                         y={cy + 4}
@@ -107,7 +142,7 @@ export function FloorPlanScreen({ navigation, route }: Props) {
                       >
                         {stopNumber}
                       </SvgText>
-                    </React.Fragment>
+                    </G>
                   );
                 })}
               </Svg>
@@ -131,7 +166,7 @@ const styles = StyleSheet.create({
     backgroundColor: PRIMARY,
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12, // slightly increased for standard portrait header look
+    paddingVertical: 12,
     paddingHorizontal: 16,
     gap: 12,
   },
@@ -160,7 +195,7 @@ const styles = StyleSheet.create({
     shadowRadius: 4,
   },
   rotatedWrapper: {
-    // This flips the map layout on its side inside the wrapper box
     transform: [{ rotate: '270deg' }],
   },
 });
+ 

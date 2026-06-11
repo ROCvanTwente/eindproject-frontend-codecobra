@@ -16,6 +16,7 @@ export type RootStackParamList = {
   RouteOverview: { language: Language };
   FloorPlan: { language: Language };
   Admin: undefined;
+  Pathfinding: { startStopId: string; endStopId: string };
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
