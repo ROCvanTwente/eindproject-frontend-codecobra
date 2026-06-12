@@ -8,16 +8,16 @@ import React, {
 } from "react";
 import { getAllStops } from "../data/api";
 import { Stop } from "../types";
-import { RECEPTION_COORDINATES } from "../data/settings";
+import { RECEPTION_COORDINATES, AdminSettings, DEFAULTS, loadSettings, saveSettings } from "../data/settings"; // Imported settings utilities
 
-// Verwijder AppConfig interface
 interface AppContextType {
   stops: Stop[];
   isLoading: boolean;
-  // appConfig: AppConfig | null; // Verwijderd
   currentStartStopId: string | null;
   setCurrentStartStopId: (stopId: string | null) => void;
   receptionCoordinates: { x: number; y: number };
+  settings: AdminSettings; // Added
+  setSettings: (settings: AdminSettings) => void; // Added
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -25,21 +25,32 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [stops, setStops] = useState<Stop[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  // const [appConfig, setAppConfig] = useState<AppConfig | null>(null); // Verwijderd
-  const [currentStartStopId, setCurrentStartStopId] = useState<string | null>(
-    null,
-  );
+  const [currentStartStopId, setCurrentStartStopId] = useState<string | null>(null);
+  
+  // 1. Initialize settings with your defaults
+  const [settings, setSettingsState] = useState<AdminSettings>(DEFAULTS);
 
   const receptionCoordinates = RECEPTION_COORDINATES;
+
+  // 2. Create a setter that updates state AND saves it to AsyncStorage
+  const setSettings = async (newSettings: AdminSettings) => {
+    setSettingsState(newSettings);
+    await saveSettings(newSettings);
+  };
 
   useEffect(() => {
     let mounted = true;
     const loadData = async () => {
       try {
-        const stopsData = await getAllStops();
+        // Fetch both stops and saved settings in parallel
+        const [stopsData, savedSettings] = await Promise.all([
+          getAllStops(),
+          loadSettings(),
+        ]);
 
         if (mounted) {
           setStops(stopsData);
+          setSettingsState(savedSettings); // Apply loaded settings
           setCurrentStartStopId('reception_fixed');
         }
       } catch (error) {
@@ -56,22 +67,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  // 3. Add settings and setSettings to the useMemo dependency array and value
   const value = useMemo(
     () => ({
       stops,
       isLoading,
-      // appConfig, // Verwijderd
       currentStartStopId,
       setCurrentStartStopId,
       receptionCoordinates,
+      settings,
+      setSettings,
     }),
     [
       stops,
       isLoading,
-      // appConfig, // Verwijderd
       currentStartStopId,
       setCurrentStartStopId,
       receptionCoordinates,
+      settings, // Included
     ],
   );
 

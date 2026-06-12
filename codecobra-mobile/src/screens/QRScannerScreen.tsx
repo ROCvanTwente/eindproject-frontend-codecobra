@@ -43,7 +43,7 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
   const scannedValue = (data ?? "").split(",")[0]?.trim();
 
   const stop = stops.find((s) =>
-    (s.qrCode ?? "")
+    String(s.qrCode ?? "")
       .split(",")
       .map((x) => x.trim())
       .includes(scannedValue)
