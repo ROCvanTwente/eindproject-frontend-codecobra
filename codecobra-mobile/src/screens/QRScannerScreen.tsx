@@ -24,7 +24,7 @@ const SECONDARY = "#0066B3";
 type Props = NativeStackScreenProps<RootStackParamList, "Scanner">;
 
 export function QRScannerScreen({ navigation, route }: Props) {
-  const { stops, isLoading } = useAppContext();
+  const { stops, isLoading, setUserPosition } = useAppContext();
   const [language, setLanguage] = useState<Language>(route.params.language);
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -52,6 +52,11 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
   if (stop) {
     setScanning(false);
     recordScan(scannedValue);
+    // The scanned QR marks the user's real-world location: make it the new
+    // start point for any future routes on the floor plan.
+    if (stop.positionX != null && stop.positionY != null) {
+      setUserPosition({ x: stop.positionX, y: stop.positionY });
+    }
     // Instantly transition screens for an ideal user experience
     navigation.push("StopDetail", { stopId: stop.id, language });
   } else {
