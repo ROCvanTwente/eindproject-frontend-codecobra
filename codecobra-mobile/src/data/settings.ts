@@ -137,6 +137,10 @@ export async function loadStops() {
         nl: item.titleNl ?? "Stop",
         en: item.titleEn ?? "Stop",
       },
+
+      // Map position, needed so a QR scan can move the user's location dot
+      positionX: item.positionX ?? null,
+      positionY: item.positionY ?? null,
     }));
   } catch (err) {
     console.log("loadStops error:", err);

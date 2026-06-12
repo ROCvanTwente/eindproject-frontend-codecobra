@@ -11,21 +11,31 @@ import {
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
-import Svg, { Circle, Text as SvgText, Image as SvgImage } from "react-native-svg";
+import Svg, {
+  Circle,
+  Text as SvgText,
+  Image as SvgImage,
+  Polyline,
+} from "react-native-svg";
 
 import { RootStackParamList } from "../../App";
-import { useAppContext } from "../context/AppContext";
-import { Language } from "../types";
+import { useAppContext, RECEPTION_POSITION } from "../context/AppContext";
+import { Language, Stop } from "../types";
 import FloorPlanImage from "../imports/PlattegrondGieterijBeganegrondV2.0.png";
 import { getAllStops } from "../data/api";
+import { findPathOnMap } from "../services/pathfinding";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
+const USER_BLUE = "#2563eb";
+const RECEPTION_GREEN = "#22c55e";
 
 type Props = NativeStackScreenProps<RootStackParamList, "FloorPlan">;
 
 export function FloorPlanScreen({ navigation, route }: Props) {
-  const { stops: contextStops } = useAppContext();
+  // userPosition is shared app state so a QR scan on the Scanner screen can
+  // move the "you are here" dot (requirement #3). It defaults to reception.
+  const { stops: contextStops, userPosition } = useAppContext();
   const language: Language = route.params.language;
 
   // 1. In portrait, width is the short side, height is the long side
@@ -33,6 +43,14 @@ export function FloorPlanScreen({ navigation, route }: Props) {
 
   const [stopsData, setStopsData] = useState(contextStops ?? []);
   const [loading, setLoading] = useState<boolean>(false);
+
+  // Selected destination + computed route (both in original 1531x704 coords).
+  // The destination is either a stop or the reception point, so it is stored
+  // as coordinates with an id used for highlighting the selected marker.
+  type Destination = { x: number; y: number; id: number | "reception" };
+  const [destination, setDestination] = useState<Destination | null>(null);
+  const [routePoints, setRoutePoints] = useState<[number, number][]>([]);
+  const [calculating, setCalculating] = useState(false);
 
   useEffect(() => {
     let mounted = true;
@@ -51,16 +69,61 @@ export function FloorPlanScreen({ navigation, route }: Props) {
     return () => { mounted = false; };
   }, []);
 
+  // Recalculates the route whenever the destination or the start point (e.g.
+  // after a QR scan) changes. findPathOnMap is synchronous and blocks the JS
+  // thread for a few hundred ms, so defer it one tick: that lets React paint
+  // the loading indicator first (ActivityIndicator animates on the native
+  // thread, so it keeps spinning during the calculation).
+  useEffect(() => {
+    if (!destination) return;
+    // Arrived (e.g. scanned the destination's QR code): clear the route.
+    if (destination.x === userPosition.x && destination.y === userPosition.y) {
+      setDestination(null);
+      setRoutePoints([]);
+      return;
+    }
+    setCalculating(true);
+    const timer = setTimeout(() => {
+      // Like the Pathfinding web prototype, search the unpadded grid: padding
+      // can swallow narrow corridors and the reception start point.
+      const path = findPathOnMap(
+        [userPosition.x, userPosition.y],
+        [destination.x, destination.y],
+      );
+      setRoutePoints(path);
+      setCalculating(false);
+    }, 50);
+    return () => clearTimeout(timer);
+  }, [userPosition, destination]);
+
   // 2. Dynamic Map Scaling (Using screen height to dictate the landscape map width)
   // Since the map is rotated 90 deg, its visual width will be limited by the screen's available height
   const AVAILABLE_HEIGHT = height - 120; // rough estimate leaving space for header
-  const MAP_W = AVAILABLE_HEIGHT; 
+  const MAP_W = AVAILABLE_HEIGHT;
   const MAP_H = MAP_W * (704 / 1531);
 
   const scaleX = (x: number) => (x / 1531) * MAP_W;
   const scaleY = (y: number) => (y / 704) * MAP_H;
 
   const positionedStops = stopsData.filter((s) => s.positionX != null && s.positionY != null);
+
+  // Click handler bound to an individual point. Because it lives on the
+  // <Circle> element itself, only the predefined nodes are tappable — taps on
+  // empty map area hit nothing and are ignored. The route calculation itself
+  // is triggered by the effect above when `destination` changes.
+  const handleStopPress = (stop: Stop) => {
+    setDestination({ x: stop.positionX!, y: stop.positionY!, id: stop.id });
+  };
+
+  const handleReceptionPress = () => {
+    setDestination({ ...RECEPTION_POSITION, id: "reception" });
+  };
+
+  const clearRoute = () => {
+    setDestination(null);
+    setRoutePoints([]);
+    setCalculating(false);
+  };
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -72,9 +135,30 @@ export function FloorPlanScreen({ navigation, route }: Props) {
         <Text style={styles.headerTitle}>
           {language === "nl" ? "Plattegrond De Gieterij" : "Floor plan De Gieterij"}
         </Text>
+        {destination && (
+          <TouchableOpacity style={styles.clearBtn} onPress={clearRoute}>
+            <Text style={styles.clearBtnText}>
+              {language === "nl" ? "Wissen" : "Clear"}
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        <Text style={styles.statusText}>
+          {calculating
+            ? language === "nl"
+              ? "Route berekenen..."
+              : "Calculating route..."
+            : destination
+              ? language === "nl"
+                ? "Route weergegeven. Tik op een ander punt om opnieuw te plannen."
+                : "Route shown. Tap another point to re-route."
+              : language === "nl"
+                ? "Tik op een punt om een route te plannen."
+                : "Tap a point to plan a route."}
+        </Text>
+
         {/* Container handles centering the rotated element */}
         <View style={[styles.mapContainer, { width: MAP_H, height: MAP_W }]}>
           {loading ? (
@@ -90,13 +174,48 @@ export function FloorPlanScreen({ navigation, route }: Props) {
                   preserveAspectRatio="xMidYMid slice"
                 />
 
+                {/* Calculated route, drawn beneath the points/markers */}
+                {routePoints.length > 0 && (
+                  <Polyline
+                    points={routePoints
+                      .map(([x, y]) => `${scaleX(x)},${scaleY(y)}`)
+                      .join(" ")}
+                    stroke={USER_BLUE}
+                    strokeWidth={4}
+                    fill="none"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  />
+                )}
+
                 {positionedStops.map((stop) => {
                   const cx = scaleX(stop.positionX!);
                   const cy = scaleY(stop.positionY!);
                   const stopNumber = stopsData.findIndex((s) => s.id === stop.id) + 1;
+                  const isDestination = destination?.id === stop.id;
+                  // The stop the user is standing at (the blue dot) is not a
+                  // valid destination, so it is not tappable.
+                  const isCurrent =
+                    stop.positionX === userPosition.x && stop.positionY === userPosition.y;
                   return (
                     <React.Fragment key={stop.id}>
-                      <Circle cx={cx} cy={cy} r={12} fill={PRIMARY} />
+                      {/* Larger transparent hit area for comfortable tapping */}
+                      {!isCurrent && (
+                        <Circle
+                          cx={cx}
+                          cy={cy}
+                          r={20}
+                          fill="transparent"
+                          onPress={() => handleStopPress(stop)}
+                        />
+                      )}
+                      <Circle
+                        cx={cx}
+                        cy={cy}
+                        r={12}
+                        fill={isDestination ? SECONDARY : PRIMARY}
+                        onPress={isCurrent ? undefined : () => handleStopPress(stop)}
+                      />
                       <SvgText
                         x={cx}
                         y={cy + 4}
@@ -104,13 +223,69 @@ export function FloorPlanScreen({ navigation, route }: Props) {
                         fill="#fff"
                         fontSize={10}
                         fontWeight="bold"
+                        // Counter the 270deg wrapper rotation so the number
+                        // reads upright on screen
+                        transform={`rotate(90, ${cx}, ${cy})`}
                       >
                         {stopNumber}
                       </SvgText>
                     </React.Fragment>
                   );
                 })}
+
+                {/* Once the user has moved away from reception (via a QR
+                    scan), keep a green "R" marker at the reception spot */}
+                {(userPosition.x !== RECEPTION_POSITION.x ||
+                  userPosition.y !== RECEPTION_POSITION.y) && (
+                  <>
+                    {/* Reception is tappable like any stop: route back to it */}
+                    <Circle
+                      cx={scaleX(RECEPTION_POSITION.x)}
+                      cy={scaleY(RECEPTION_POSITION.y)}
+                      r={20}
+                      fill="transparent"
+                      onPress={handleReceptionPress}
+                    />
+                    <Circle
+                      cx={scaleX(RECEPTION_POSITION.x)}
+                      cy={scaleY(RECEPTION_POSITION.y)}
+                      r={12}
+                      fill={destination?.id === "reception" ? SECONDARY : RECEPTION_GREEN}
+                      stroke="#fff"
+                      strokeWidth={2}
+                      onPress={handleReceptionPress}
+                    />
+                    <SvgText
+                      x={scaleX(RECEPTION_POSITION.x)}
+                      y={scaleY(RECEPTION_POSITION.y) + 4}
+                      textAnchor="middle"
+                      fill="#fff"
+                      fontSize={11}
+                      fontWeight="bold"
+                      transform={`rotate(90, ${scaleX(RECEPTION_POSITION.x)}, ${scaleY(RECEPTION_POSITION.y)})`}
+                    >
+                      R
+                    </SvgText>
+                  </>
+                )}
+
+                {/* "You are here" — blue dot at the current user position */}
+                <Circle
+                  cx={scaleX(userPosition.x)}
+                  cy={scaleY(userPosition.y)}
+                  r={10}
+                  fill={USER_BLUE}
+                  stroke="#fff"
+                  strokeWidth={3}
+                />
               </Svg>
+            </View>
+          )}
+
+          {/* Route calculation overlay */}
+          {calculating && (
+            <View style={styles.calcOverlay}>
+              <ActivityIndicator size="large" color={USER_BLUE} />
             </View>
           )}
         </View>
@@ -140,12 +315,25 @@ const styles = StyleSheet.create({
     borderRadius: 8,
     padding: 6,
   },
-  headerTitle: { fontSize: 18, color: "#fff", fontWeight: "700" },
-  content: { 
-    flex: 1, 
-    justifyContent: 'center', 
+  headerTitle: { fontSize: 18, color: "#fff", fontWeight: "700", flex: 1 },
+  clearBtn: {
+    backgroundColor: "rgba(255,255,255,0.2)",
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  clearBtnText: { color: "#fff", fontWeight: "600" },
+  content: {
+    flex: 1,
+    justifyContent: 'center',
     alignItems: 'center',
-    padding: 10 
+    padding: 10
+  },
+  statusText: {
+    textAlign: "center",
+    color: "#374151",
+    fontSize: 14,
+    marginBottom: 10,
   },
   mapContainer: {
     justifyContent: 'center',
@@ -162,5 +350,11 @@ const styles = StyleSheet.create({
   rotatedWrapper: {
     // This flips the map layout on its side inside the wrapper box
     transform: [{ rotate: '270deg' }],
+  },
+  calcOverlay: {
+    ...StyleSheet.absoluteFill,
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: 'rgba(255,255,255,0.45)',
   },
 });

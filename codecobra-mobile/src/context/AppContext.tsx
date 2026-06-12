@@ -2,12 +2,23 @@ import React, { createContext, useContext, useEffect, useState } from "react";
 import { Stop } from "../types";
 import { AdminSettings, DEFAULTS, loadSettings, loadStops, saveSettings, saveStops } from "../data/settings";
 
+export interface UserPosition {
+  x: number;
+  y: number;
+}
+
+// Fixed starting point: the reception desk in map (1531x704) coordinates.
+export const RECEPTION_POSITION: UserPosition = { x: 300, y: 450 };
+
 interface AppContextValue {
   stops: Stop[];
   setStops: (stops: Stop[]) => void;
   settings: AdminSettings;
   setSettings: (s: AdminSettings) => void;
   isLoading: boolean;
+  /** Current location of the user on the floor plan (map coords). */
+  userPosition: UserPosition;
+  setUserPosition: (p: UserPosition) => void;
 }
 
 const AppContext = createContext<AppContextValue | null>(null);
@@ -16,6 +27,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [stops, setStopsState] = useState<Stop[]>([]);
   const [settings, setSettingsState] = useState<AdminSettings>(DEFAULTS);
   const [isLoading, setIsLoading] = useState(true);
+  const [userPosition, setUserPosition] = useState<UserPosition>(RECEPTION_POSITION);
 
 useEffect(() => {
   Promise.all([loadStops(), loadSettings()]).then(([s, cfg]) => {
@@ -36,7 +48,9 @@ useEffect(() => {
   };
 
   return (
-    <AppContext.Provider value={{ stops, setStops, settings, setSettings, isLoading }}>
+    <AppContext.Provider
+      value={{ stops, setStops, settings, setSettings, isLoading, userPosition, setUserPosition }}
+    >
       {children}
     </AppContext.Provider>
   );
