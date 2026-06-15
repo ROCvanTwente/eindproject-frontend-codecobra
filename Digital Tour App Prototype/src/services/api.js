@@ -483,6 +483,24 @@ export async function updateTourStop(id, formData) {
   return await response.json();
 }
 
+export async function updateAllTourStopsOrder(orderedIds) {
+  // orderedIds looks like: [3, 1, 4, 2]
+  const response = await fetch(`${API_BASE_URL}/stops/reorder-all`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(orderedIds),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to update tour stops order");
+  }
+  return await response.json();
+}
+
 export async function uploadMedia(file, qrCodeId) {
   const formData = new FormData();
   formData.append("file", file);

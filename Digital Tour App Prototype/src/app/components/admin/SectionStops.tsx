@@ -1,7 +1,7 @@
 import { ChevronUp, ChevronDown } from "lucide-react";
 import { Stop, Language } from "../../types";
 import { SortableList } from "./SortableList";
-import { deleteTourStop } from "../../../services/api";
+import { deleteTourStop, updateAllTourStopsOrder } from "../../../services/api";
 
 interface Props {
   language: Language;
@@ -43,22 +43,41 @@ export function SectionStops({
     }
   };
 
-  const move = (index: number, delta: number) => {
-    const next = [...stops];
-    const target = index + delta;
-    if (target < 0 || target >= next.length) return;
-    [next[index], next[target]] = [next[target], next[index]];
-    onUpdateStops(next);
-    log(
-      "reorder-stop",
-      next[target].title.nl || `#${next[target].id}`,
+const persistBulkOrder = async (updatedStops: Stop[]) => {
+  try {
+    const orderedIds = updatedStops.map(stop => stop.id);
+    await updateAllTourStopsOrder(orderedIds);
+  } catch (error) {
+    console.error("Failed to persist bulk stop order", error);
+    alert(
+      language === "nl"
+        ? "Bijwerken van de volgorde is mislukt."
+        : "Failed to update the order of the stops.",
     );
-  };
+  }
+};
 
-  const handleReorder = (next: Stop[]) => {
-    onUpdateStops(next);
-    log("reorder-stop", "drag-drop");
-  };
+const move = async (index: number, delta: number) => {
+  const next = [...stops];
+  const target = index + delta;
+  if (target < 0 || target >= next.length) return;
+  
+  [next[index], next[target]] = [next[target], next[index]];
+  onUpdateStops(next);
+  
+  log("reorder-stop", next[target].title.nl || `#${next[target].id}`);
+
+  // Send the newly arranged list to the backend
+  await persistBulkOrder(next); 
+};
+
+const handleReorder = async (next: Stop[]) => {
+  onUpdateStops(next);
+  log("reorder-stop", "drag-drop");
+
+  // Send the newly dragged list to the backend
+  await persistBulkOrder(next);
+};
 
   return (
     <div>
