@@ -13,6 +13,7 @@ import {
   Menu,
   X,
   History,
+  Speech,
 } from "lucide-react";
 import { Stop, Language, SectionKey } from "../types";
 import { StopForm } from "./StopForm";
@@ -31,6 +32,7 @@ import { SectionManualAdmin } from "./admin/SectionManualAdmin";
 import { SectionFloorPlan } from "./admin/SectionFloorPlan";
 import { createTourStop, saveTourStop } from "../../services/api";
 import { SectionHistory } from "./admin/SectionHistory";
+import { SectionTextSpeech } from "./admin/SectionTextSpeech";
 // Removed: SectionTheme, SectionScavenger, SectionManualUser, SectionBattery
 
 interface AdminPanelProps {
@@ -52,16 +54,17 @@ export const SECTION_META: Array<{
   en: string;
   disabled?: boolean;
 }> = [
-  { key: "home", icon: Home, nl: "Overzicht", en: "Overview" },
-  { key: "stops", icon: MapPin, nl: "Stops beheren", en: "Manage stops" },
-  { key: "floorPlan", icon: Compass, nl: "Plattegrond", en: "Floor plan" },
-  { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
-  { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
-  { key: "stats", icon: BarChart3, nl: "Statistieken", en: "Statistics" },
-  { key: "history", icon: History, nl: "History", en: "History" },
-  { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
-  { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
-];
+    { key: "home", icon: Home, nl: "Overzicht", en: "Overview" },
+    { key: "stops", icon: MapPin, nl: "Stops beheren", en: "Manage stops" },
+    { key: "floorPlan", icon: Compass, nl: "Plattegrond", en: "Floor plan" },
+    { key: "media", icon: Images, nl: "Foto's & video's", en: "Photos & videos" },
+    { key: "qr", icon: QrCode, nl: "QR codes", en: "QR codes" },
+    { key: "stats", icon: BarChart3, nl: "Statistieken", en: "Statistics" },
+    { key: "history", icon: History, nl: "History", en: "History" },
+    { key: "accounts", icon: Users, nl: "Beheer accounts", en: "Admin accounts" },
+    { key: "manualAdmin", icon: BookUser, nl: "Handleiding beheer", en: "Admin manual" },
+    { key: "tts", icon: Speech, nl: "Tekst naar spraak", en: "Text to Speech" }
+  ];
 
 export function AdminPanel({
   stops,
@@ -77,6 +80,7 @@ export function AdminPanel({
   );
   const [isCreating, setIsCreating] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
+
 
   // ── Stop edit screen (kept from original flow) ─────────────────────────────
   if (editingStop || isCreating) {
@@ -250,7 +254,7 @@ export function AdminPanel({
             onUpdateStops={onUpdateStops}
           />
         );
-        case "history":
+      case "history":
         return (
           <SectionHistory
             language={language}
@@ -264,6 +268,12 @@ export function AdminPanel({
             language={language}
             settings={settings}
             onChange={onUpdateSettings}
+          />
+        );
+      case "tts":
+        return (
+          <SectionTextSpeech
+            language={language}
           />
         );
       /* Removed/disabled sections: theme, scavenger, manualUser, battery */
@@ -333,9 +343,8 @@ export function AdminPanel({
 
       {/* Mobile hamburger menu */}
       <nav
-        className={`md:hidden fixed top-0 left-0 h-full w-72 bg-white shadow-xl z-40 transform transition-transform duration-300 ${
-          menuOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        className={`md:hidden fixed top-0 left-0 h-full w-72 bg-white shadow-xl z-40 transform transition-transform duration-300 ${menuOpen ? "translate-x-0" : "-translate-x-full"
+          }`}
       >
         <div className="flex items-center justify-between bg-[#E30613] text-white px-4 py-3">
           <span className="text-lg">
@@ -364,11 +373,10 @@ export function AdminPanel({
                   setSection(s.key);
                   setMenuOpen(false);
                 }}
-                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors mb-1 ${
-                  active
-                    ? "bg-[#0066B3] text-white"
-                    : "text-gray-700 hover:bg-gray-100"
-                }`}
+                className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg text-left transition-colors mb-1 ${active
+                  ? "bg-[#0066B3] text-white"
+                  : "text-gray-700 hover:bg-gray-100"
+                  }`}
               >
                 <Icon className="w-5 h-5 flex-shrink-0" />
                 <span className="text-sm">{s[language]}</span>
@@ -393,11 +401,10 @@ export function AdminPanel({
                   onClick={() => {
                     setSection(s.key);
                   }}
-                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors ${
-                    active
-                      ? "bg-[#0066B3] text-white"
-                      : "text-gray-700 hover:bg-gray-100"
-                  }`}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-lg text-left transition-colors ${active
+                    ? "bg-[#0066B3] text-white"
+                    : "text-gray-700 hover:bg-gray-100"
+                    }`}
                 >
                   <Icon className="w-5 h-5 flex-shrink-0" />
                   <span className="text-sm truncate">

@@ -89,4 +89,12 @@ export async function getStopById(id: number) {
     return mapTourStopResponse(data);
 }
 
+export async function getPronunciationRules() {
+  const response = await fetch(`${API_URL}/tts/all`);
+  if (!response.ok) {
+    throw new Error("Failed to fetch pronunciation rules");
+  }
+  return response.json();
+}
+
 export { API_URL };

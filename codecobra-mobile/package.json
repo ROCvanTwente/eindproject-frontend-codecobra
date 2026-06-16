@@ -25,7 +25,6 @@
     "react-native-screens": "^4.25.0",
     "react-native-sound": "^0.13.0",
     "react-native-svg": "^15.12.1",
-    "react-native-tts": "^4.1.1",
     "react-native-webview": "^13.16.1"
   },
   "devDependencies": {
@@ -40,8 +39,8 @@
     "@react-native/metro-config": "0.85.3",
     "@react-native/typescript-config": "0.85.3",
     "@types/react": "^19.2.0",
-    "typescript": "^5.8.3",
-    "jimp": "^0.22.9"
+    "jimp": "^0.22.9",
+    "typescript": "^5.8.3"
   },
   "engines": {
     "node": ">=20.0.0"
