@@ -10,6 +10,7 @@
 export interface BeaconConfig {
   id: string;
   name: string;
+  /** Last 3 bytes of the FDA5 service data (hex, uppercase). e.g. "6C3AB5" */
   serviceDataSuffix: string;
   /** Position on the 1531×704 map where this beacon is physically mounted. */
   mapX: number;
@@ -21,6 +22,9 @@ export interface BeaconConfig {
   /** RSSI at 1 meter (calibrated per beacon; default -59 dBm). */
   txPower: number;
 }
+
+// The 16-bit service UUID the beacons advertise on.
+export const BEACON_SERVICE_UUID = "FDA5";
 
 // Map positions will be set to match the stop positions from the API.
 // These defaults assume the beacons are placed at stops 1, 3, 5, 7, 9.
