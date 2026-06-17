@@ -40,7 +40,11 @@ export function RouteOverviewScreen({ navigation, route }: Props) {
       setFetchError(null);
       try {
         const data = await getAllStops();
-        if (mounted && Array.isArray(data)) setStops(data);
+        if (mounted && Array.isArray(data)) {
+          // Client-side sort safeguard to match database order
+          const sortedData = [...data].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+          setStops(sortedData);
+        }
       } catch (error) {
         console.error("Error fetching stops:", error);
         if (mounted) setFetchError(String(error));
@@ -64,7 +68,8 @@ export function RouteOverviewScreen({ navigation, route }: Props) {
       <View style={styles.cardRow}>
         <View style={styles.cardIndex}>
           <Ionicons name="chevron-forward" size={14} color="rgba(255,255,255,0.7)" />
-          <Text style={styles.cardIndexText}>{index + 1}</Text>
+          {/* Changed from hardcoded index to display explicit database order property */}
+          <Text style={styles.cardIndexText}>{item.order ?? index + 1}</Text>
         </View>
         <View style={styles.cardContent}>
           <Text style={styles.cardTitle} numberOfLines={1}>
@@ -118,30 +123,30 @@ export function RouteOverviewScreen({ navigation, route }: Props) {
       ) : (
         <FlatList
           data={stops}
-        keyExtractor={(s) => String(s.id)}
-        renderItem={renderStop}
-        contentContainerStyle={styles.list}
-        ListHeaderComponent={
-          <View style={styles.introCard}>
-            <View style={styles.introIcon}>
-              <Ionicons name="location" size={24} color="#fff" />
+          keyExtractor={(s) => String(s.id)}
+          renderItem={renderStop}
+          contentContainerStyle={styles.list}
+          ListHeaderComponent={
+            <View style={styles.introCard}>
+              <View style={styles.introIcon}>
+                <Ionicons name="location" size={24} color="#fff" />
+              </View>
+              <Text style={styles.introText}>
+                {language === "nl"
+                  ? "Tik op een stop om de informatie te bekijken."
+                  : "Tap a stop to view the information."}
+              </Text>
             </View>
-            <Text style={styles.introText}>
-              {language === "nl"
-                ? "Tik op een stop om de informatie te bekijken."
-                : "Tap a stop to view the information."}
-            </Text>
-          </View>
-        }
-        ListFooterComponent={
-          <View style={styles.endCard}>
-            <Text style={styles.endCardText}>
-              {language === "nl"
-                ? `✓ Totale rondleiding: ~${totalDuration} minuten`
-                : `✓ Total tour: ~${totalDuration} minutes`}
-            </Text>
-          </View>
-        }
+          }
+          ListFooterComponent={
+            <View style={styles.endCard}>
+              <Text style={styles.endCardText}>
+                {language === "nl"
+                  ? `✓ Totale rondleiding: ~${totalDuration} minuten`
+                  : `✓ Total tour: ~${totalDuration} minutes`}
+              </Text>
+            </View>
+          }
           ItemSeparatorComponent={() => <View style={{ height: 12 }} />}
         />
       )}

@@ -24,7 +24,7 @@ const SECONDARY = "#0066B3";
 type Props = NativeStackScreenProps<RootStackParamList, "Scanner">;
 
 export function QRScannerScreen({ navigation, route }: Props) {
-  const { stops, isLoading } = useAppContext();
+  const { stops, isLoading, setUserPosition } = useAppContext();
   const [language, setLanguage] = useState<Language>(route.params.language);
   const [scanning, setScanning] = useState(false);
   const [scanned, setScanned] = useState(false);
@@ -52,6 +52,11 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
   if (stop) {
     setScanning(false);
     recordScan(scannedValue);
+    // The scanned QR marks the user's real-world location: make it the new
+    // start point for any future routes on the floor plan.
+    if (stop.positionX != null && stop.positionY != null) {
+      setUserPosition({ x: stop.positionX, y: stop.positionY });
+    }
     // Instantly transition screens for an ideal user experience
     navigation.push("StopDetail", { stopId: stop.id, language });
   } else {
@@ -124,6 +129,10 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
     setScanned(false);
     setScanning(true);
   };
+
+  const orderedStops = React.useMemo(() => {
+    return [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [stops]);
 
   if (scanning) {
     return (
@@ -198,30 +207,31 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
         </Text>
 
         {/* Stops list */}
-        <View style={styles.stopList}>
-          {stops.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {language === "nl" ? "Geen stops beschikbaar." : "No stops available."}
-            </Text>
-          ) : (
-            stops.map((stop, index) => (
-              <TouchableOpacity
-                key={stop.id}
-                style={styles.stopItem}
-                onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
-                activeOpacity={0.8}
-              >
-                <View style={styles.stopIndex}>
-                  <Text style={styles.stopIndexText}>{index + 1}</Text>
-                </View>
-                <Text style={styles.stopTitle} numberOfLines={1}>
-                  {language === "nl" ? stop.titleNl : stop.titleEn || stop.qrCode}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color={SECONDARY} />
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
+<View style={styles.stopList}>
+    {orderedStops.length === 0 ? (
+      <Text style={styles.emptyText}>
+        {language === "nl" ? "Geen stops beschikbaar." : "No stops available."}
+      </Text>
+    ) : (
+      orderedStops.map((stop, index) => (
+        <TouchableOpacity
+          key={stop.id}
+          style={styles.stopItem}
+          onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
+          activeOpacity={0.8}
+        >
+          <View style={styles.stopIndex}>
+            {/* 2. Changed from hardcoded loop index to display explicit database order property */}
+            <Text style={styles.stopIndexText}>{stop.order ?? index + 1}</Text>
+          </View>
+          <Text style={styles.stopTitle} numberOfLines={1}>
+            {language === "nl" ? stop.titleNl : stop.titleEn || stop.qrCode}
+          </Text>
+          <Ionicons name="chevron-forward" size={20} color={SECONDARY} />
+        </TouchableOpacity>
+      ))
+    )}
+  </View>
       </ScrollView>
 
       {/* Footer nav */}

@@ -1,5 +1,5 @@
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import { getAllStops } from "./api";
+import { getAllStops, getPronunciationRules } from "./api";
 
 export type SpeedKey = "slow" | "normal" | "fast";
 export type VoiceGender = "female" | "male";
@@ -137,6 +137,10 @@ export async function loadStops() {
         nl: item.titleNl ?? "Stop",
         en: item.titleEn ?? "Stop",
       },
+
+      // Map position, needed so a QR scan can move the user's location dot
+      positionX: item.positionX ?? null,
+      positionY: item.positionY ?? null,
     }));
   } catch (err) {
     console.log("loadStops error:", err);
@@ -160,3 +164,21 @@ export function addHistory(
   const entry: HistoryEntry = { id: now, timestamp: now, actor, action, target };
   return { ...s, history: [entry, ...s.history].slice(0, 200) };
 }
+
+export interface PronunciationRule {
+  id: number;
+  word: string;
+  pronunciationText: string;
+  language: string;
+}
+
+export async function loadPronunciationRules(): Promise<PronunciationRule[]> {
+  try {
+    const data = await getPronunciationRules();
+    return Array.isArray(data) ? (data as PronunciationRule[]) : [];
+  } catch (error) {
+    console.error("Failed to load pronunciation rules:", error);
+    return [];
+  }
+}
+
