@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,8 @@ import {
   SafeAreaView,
   ActivityIndicator,
   useWindowDimensions,
+  Animated,
+  Easing,
 } from "react-native";
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
@@ -25,6 +27,8 @@ import FloorPlanImage from "../imports/PlattegrondGieterijBeganegrondV2.0.png";
 import { getAllStops } from "../data/api";
 import { findPathOnMap } from "../services/pathfinding";
 
+const AnimatedCircle = Animated.createAnimatedComponent(Circle);
+
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
 const USER_BLUE = "#2563eb";
@@ -35,7 +39,20 @@ type Props = NativeStackScreenProps<RootStackParamList, "FloorPlan">;
 export function FloorPlanScreen({ navigation, route }: Props) {
   // userPosition is shared app state so a QR scan on the Scanner screen can
   // move the "you are here" dot (requirement #3). It defaults to reception.
-  const { stops: contextStops, userPosition } = useAppContext();
+  const { stops: contextStops, userPosition, beaconTracking } = useAppContext();
+
+  // Pulse animation for the "you are here" beacon dot.
+  const pulseAnim = useRef(new Animated.Value(1)).current;
+  useEffect(() => {
+    const loop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.8, duration: 1200, easing: Easing.out(Easing.ease), useNativeDriver: false }),
+        Animated.timing(pulseAnim, { toValue: 1, duration: 1200, easing: Easing.in(Easing.ease), useNativeDriver: false }),
+      ]),
+    );
+    loop.start();
+    return () => loop.stop();
+  }, [pulseAnim]);
   const language: Language = route.params.language;
 
   // 1. In portrait, width is the short side, height is the long side
@@ -159,6 +176,27 @@ export function FloorPlanScreen({ navigation, route }: Props) {
                 : "Tap a point to plan a route."}
         </Text>
 
+        {/* Beacon tracking status */}
+        <View style={styles.beaconStatus}>
+          <View style={[
+            styles.beaconDot,
+            { backgroundColor: beaconTracking.isTracking && beaconTracking.beaconsInRange > 0 ? "#22c55e" : "#9ca3af" },
+          ]} />
+          <Text style={styles.beaconStatusText}>
+            {beaconTracking.isTracking
+              ? beaconTracking.beaconsInRange > 0
+                ? language === "nl"
+                  ? `${beaconTracking.beaconsInRange} beacon${beaconTracking.beaconsInRange > 1 ? "s" : ""} in bereik`
+                  : `${beaconTracking.beaconsInRange} beacon${beaconTracking.beaconsInRange > 1 ? "s" : ""} in range`
+                : language === "nl"
+                  ? "Beacons zoeken..."
+                  : "Searching beacons..."
+              : language === "nl"
+                ? "Beacon tracking uit"
+                : "Beacon tracking off"}
+          </Text>
+        </View>
+
         {/* Container handles centering the rotated element */}
         <View style={[styles.mapContainer, { width: MAP_H, height: MAP_W }]}>
           {loading ? (
@@ -269,7 +307,19 @@ export function FloorPlanScreen({ navigation, route }: Props) {
                   </>
                 )}
 
-                {/* "You are here" — blue dot at the current user position */}
+                {/* Pulsing accuracy ring around user position */}
+                <AnimatedCircle
+                  cx={scaleX(userPosition.x)}
+                  cy={scaleY(userPosition.y)}
+                  r={pulseAnim.interpolate({
+                    inputRange: [1, 1.8],
+                    outputRange: [12, 24],
+                  })}
+                  fill="rgba(37,99,235,0.15)"
+                  stroke="rgba(37,99,235,0.3)"
+                  strokeWidth={1}
+                />
+                {/* "You are here" — solid blue dot */}
                 <Circle
                   cx={scaleX(userPosition.x)}
                   cy={scaleY(userPosition.y)}
@@ -333,7 +383,23 @@ const styles = StyleSheet.create({
     textAlign: "center",
     color: "#374151",
     fontSize: 14,
-    marginBottom: 10,
+    marginBottom: 4,
+  },
+  beaconStatus: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 8,
+    gap: 6,
+  },
+  beaconDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  beaconStatusText: {
+    fontSize: 12,
+    color: "#6b7280",
   },
   mapContainer: {
     justifyContent: 'center',

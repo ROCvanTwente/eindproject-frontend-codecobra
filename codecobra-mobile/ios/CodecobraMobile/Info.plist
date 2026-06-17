@@ -36,8 +36,12 @@
 	</dict>
 	<key>NSCameraUsageDescription</key>
 	<string>Gebruik de camera om QR-codes voor de rondleiding te scannen.</string>
+	<key>NSBluetoothAlwaysUsageDescription</key>
+	<string>Bluetooth wordt gebruikt om je locatie in het gebouw te bepalen via beacons.</string>
+	<key>NSBluetoothPeripheralUsageDescription</key>
+	<string>Bluetooth wordt gebruikt om je locatie in het gebouw te bepalen via beacons.</string>
 	<key>NSLocationWhenInUseUsageDescription</key>
-	<string></string>
+	<string>Locatie is nodig voor indoor positionering via Bluetooth beacons.</string>
 	<key>UILaunchStoryboardName</key>
 	<string>LaunchScreen</string>
 	<key>UIRequiredDeviceCapabilities</key>
