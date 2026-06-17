@@ -1,6 +1,6 @@
 // Beacon configuration for indoor positioning.
-// Physical beacons: C300006 Beacon 1–5
-// Identified by the last 3 bytes of their BLE service data.
+// Physical beacons: BC01–BC05
+// Identified by the last 3 bytes of their BLE FDA5 service data.
 //
 // 5 beacons cover 9 stops. Beacons are placed at strategic positions so every
 // stop is within range of at least 2 beacons for trilateration.
@@ -32,7 +32,7 @@ export const BEACON_SERVICE_UUID = "FDA5";
 export const BEACONS: BeaconConfig[] = [
   {
     id: "beacon-1",
-    name: "C300006 Beacon 1",
+    name: "BC01",
     serviceDataSuffix: "6C3AB5",
     mapX: 0,
     mapY: 0,
@@ -42,7 +42,7 @@ export const BEACONS: BeaconConfig[] = [
   },
   {
     id: "beacon-2",
-    name: "C300006 Beacon 2",
+    name: "BC01",
     serviceDataSuffix: "6C3AB6",
     mapX: 0,
     mapY: 0,
@@ -52,7 +52,7 @@ export const BEACONS: BeaconConfig[] = [
   },
   {
     id: "beacon-3",
-    name: "C300006 Beacon 3",
+    name: "BC01",
     serviceDataSuffix: "6C3B27",
     mapX: 0,
     mapY: 0,
@@ -62,7 +62,7 @@ export const BEACONS: BeaconConfig[] = [
   },
   {
     id: "beacon-4",
-    name: "C300006 Beacon 4",
+    name: "BC01",
     serviceDataSuffix: "6C3B32",
     mapX: 0,
     mapY: 0,
@@ -72,7 +72,7 @@ export const BEACONS: BeaconConfig[] = [
   },
   {
     id: "beacon-5",
-    name: "C300006 Beacon 5",
+    name: "BC01",
     serviceDataSuffix: "6C3ADC",
     mapX: 0,
     mapY: 0,
