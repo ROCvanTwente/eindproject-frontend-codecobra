@@ -483,6 +483,24 @@ export async function updateTourStop(id, formData) {
   return await response.json();
 }
 
+export async function updateAllTourStopsOrder(orderedIds) {
+  // orderedIds looks like: [3, 1, 4, 2]
+  const response = await fetch(`${API_BASE_URL}/stops/reorder-all`, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(orderedIds),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to update tour stops order");
+  }
+  return await response.json();
+}
+
 export async function uploadMedia(file, qrCodeId) {
   const formData = new FormData();
   formData.append("file", file);
@@ -550,5 +568,42 @@ export async function getNumberScansQrCode(id) {
     throw new Error(errorText || "Failed to fetch QR code statistics");
   }
   return await response.json();
+}
+
+export async function getAllPronunciationRules() {
+  const response = await fetch(`${API_BASE_URL}/tts/all`, {
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) throw new Error(await response.text() || "Failed to fetch rules");
+  return await response.json();
+}
+
+export async function createPronunciationRule(rule) {
+  const response = await fetch(`${API_BASE_URL}/tts/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(rule),
+  });
+  if (!response.ok) throw new Error(await response.text() || "Failed to create rule");
+  return await response.json();
+}
+
+export async function updatePronunciationRule(rule) {
+  const response = await fetch(`${API_BASE_URL}/tts`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(rule),
+  });
+  if (!response.ok) throw new Error(await response.text() || "Failed to update rule");
+  return true; 
+}
+
+export async function deletePronunciationRule(id) {
+  const response = await fetch(`${API_BASE_URL}/tts/${id}`, {
+    method: "DELETE",
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) throw new Error(await response.text() || "Failed to delete rule");
+  return true;
 }
 

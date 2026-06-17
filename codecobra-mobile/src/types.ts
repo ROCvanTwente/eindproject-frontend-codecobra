@@ -19,6 +19,7 @@ export interface Stop {
   estimatedDuration: number;
   positionX?: number;
   positionY?: number;
+  order?: number;
 }
 
 export interface TourData {

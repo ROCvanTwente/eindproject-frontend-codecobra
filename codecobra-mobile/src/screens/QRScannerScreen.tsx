@@ -130,6 +130,10 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
     setScanning(true);
   };
 
+  const orderedStops = React.useMemo(() => {
+    return [...stops].sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+  }, [stops]);
+
   if (scanning) {
     return (
       <View style={styles.cameraContainer}>
@@ -203,30 +207,31 @@ const handleBarCodeScanned = ({ data }: { data: string }) => {
         </Text>
 
         {/* Stops list */}
-        <View style={styles.stopList}>
-          {stops.length === 0 ? (
-            <Text style={styles.emptyText}>
-              {language === "nl" ? "Geen stops beschikbaar." : "No stops available."}
-            </Text>
-          ) : (
-            stops.map((stop, index) => (
-              <TouchableOpacity
-                key={stop.id}
-                style={styles.stopItem}
-                onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
-                activeOpacity={0.8}
-              >
-                <View style={styles.stopIndex}>
-                  <Text style={styles.stopIndexText}>{index + 1}</Text>
-                </View>
-                <Text style={styles.stopTitle} numberOfLines={1}>
-                  {language === "nl" ? stop.titleNl : stop.titleEn || stop.qrCode}
-                </Text>
-                <Ionicons name="chevron-forward" size={20} color={SECONDARY} />
-              </TouchableOpacity>
-            ))
-          )}
-        </View>
+<View style={styles.stopList}>
+    {orderedStops.length === 0 ? (
+      <Text style={styles.emptyText}>
+        {language === "nl" ? "Geen stops beschikbaar." : "No stops available."}
+      </Text>
+    ) : (
+      orderedStops.map((stop, index) => (
+        <TouchableOpacity
+          key={stop.id}
+          style={styles.stopItem}
+          onPress={() => navigation.push("StopDetail", { stopId: stop.id, language })}
+          activeOpacity={0.8}
+        >
+          <View style={styles.stopIndex}>
+            {/* 2. Changed from hardcoded loop index to display explicit database order property */}
+            <Text style={styles.stopIndexText}>{stop.order ?? index + 1}</Text>
+          </View>
+          <Text style={styles.stopTitle} numberOfLines={1}>
+            {language === "nl" ? stop.titleNl : stop.titleEn || stop.qrCode}
+          </Text>
+          <Ionicons name="chevron-forward" size={20} color={SECONDARY} />
+        </TouchableOpacity>
+      ))
+    )}
+  </View>
       </ScrollView>
 
       {/* Footer nav */}
