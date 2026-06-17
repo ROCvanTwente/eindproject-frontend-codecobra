@@ -552,3 +552,40 @@ export async function getNumberScansQrCode(id) {
   return await response.json();
 }
 
+export async function getAllPronunciationRules() {
+  const response = await fetch(`${API_BASE_URL}/tts/all`, {
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) throw new Error(await response.text() || "Failed to fetch rules");
+  return await response.json();
+}
+
+export async function createPronunciationRule(rule) {
+  const response = await fetch(`${API_BASE_URL}/tts/add`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(rule),
+  });
+  if (!response.ok) throw new Error(await response.text() || "Failed to create rule");
+  return await response.json();
+}
+
+export async function updatePronunciationRule(rule) {
+  const response = await fetch(`${API_BASE_URL}/tts`, {
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+    body: JSON.stringify(rule),
+  });
+  if (!response.ok) throw new Error(await response.text() || "Failed to update rule");
+  return true; 
+}
+
+export async function deletePronunciationRule(id) {
+  const response = await fetch(`${API_BASE_URL}/tts/${id}`, {
+    method: "DELETE",
+    headers: { ...getAuthHeaders() },
+  });
+  if (!response.ok) throw new Error(await response.text() || "Failed to delete rule");
+  return true;
+}
+

@@ -16,7 +16,8 @@ export type SectionKey =
   | "manualUser"
   | "start"
   | "battery"
-  | "background";
+  | "background"
+  | "tts";
 
 export interface Stop {
   id: number;

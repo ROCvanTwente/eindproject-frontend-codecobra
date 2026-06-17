@@ -13,22 +13,23 @@ import {
 import { NativeStackScreenProps } from "@react-navigation/native-stack";
 import Ionicons from "@react-native-vector-icons/ionicons";
 import { WebView } from "react-native-webview";
-import Tts from "react-native-tts";
 
 import { RootStackParamList } from "../../App";
 import { useAppContext } from "../context/AppContext";
 import { Language, Stop } from "../types";
 import { getStopById, resolveMediaUrl } from "../data/api";
+import { speak, stopSpeaking, setPlaybackSpeed } from "../data/deepgram";
 
 const PRIMARY = "#E30613";
 const SECONDARY = "#0066B3";
 const { height: SCREEN_H } = Dimensions.get("window");
 
 type SpeedKey = "slow" | "normal" | "fast";
+// Deepgram returns audio at a fixed pace; these are playback-speed multipliers.
 const SPEED_PRESETS: Record<SpeedKey, { rate: number; nl: string; en: string }> = {
-  slow: { rate: 0.35, nl: "Langzaam", en: "Slow" },
-  normal: { rate: 0.5, nl: "Normaal", en: "Normal" },
-  fast: { rate: 0.65, nl: "Snel", en: "Fast" },
+  slow: { rate: 0.8, nl: "Langzaam", en: "Slow" },
+  normal: { rate: 1.0, nl: "Normaal", en: "Normal" },
+  fast: { rate: 1.25, nl: "Snel", en: "Fast" },
 };
 
 type Props = NativeStackScreenProps<RootStackParamList, "StopDetail">;
@@ -64,6 +65,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const stopIndex = stops.findIndex((s) => s.id === stopId);
 
   const [isSpeaking, setIsSpeaking] = useState(false);
+  const [loadingAudio, setLoadingAudio] = useState(false);
   const [speed, setSpeed] = useState<SpeedKey>(settings.textSpeed || "normal");
   const scrollRef = useRef<ScrollView>(null);
 
@@ -93,51 +95,25 @@ export function StopDetailScreen({ navigation, route }: Props) {
     };
   }, [stopId]);
 
-  const setupTts = useCallback(async () => {
-    try {
-      await Tts.getInitStatus();
-      const voices = await Tts.voices();
-      const targetLang = language === "nl" ? "nl-NL" : "en-US";
-
-      const bestVoice = voices.find(v =>
-        v.language.includes(targetLang) &&
-        (v.name.toLowerCase().includes("premium") ||
-          v.name.toLowerCase().includes("enhanced") ||
-          v.name.toLowerCase().includes("neural"))
-      ) || voices.find(v => v.language.includes(targetLang));
-
-      if (bestVoice) {
-        await Tts.setDefaultVoice(bestVoice.id);
-      }
-      await Tts.setDefaultLanguage(targetLang);
-      await Tts.setDucking(true);
-    } catch (e) {
-      console.error("TTS Setup error:", e);
-    }
-  }, [language]);
-
+  // Stop any audio when leaving the screen.
   useEffect(() => {
-    setupTts();
-
-    const onStart = () => setIsSpeaking(true);
-    const onFinish = () => setIsSpeaking(false);
-    const onCancel = () => setIsSpeaking(false);
-
-    const startSubscription = Tts.addEventListener("tts-start", onStart) as any;
-    const finishSubscription = Tts.addEventListener("tts-finish", onFinish) as any;
-    const cancelSubscription = Tts.addEventListener("tts-cancel", onCancel) as any;
-
     return () => {
-      Tts.stop();
-      startSubscription.remove();
-      finishSubscription.remove();
-      cancelSubscription.remove();
+      stopSpeaking();
     };
-  }, [setupTts]);
+  }, []);
+
+  // Keep playback speed in sync while audio is playing.
+  useEffect(() => {
+    if (isSpeaking) {
+      setPlaybackSpeed(SPEED_PRESETS[speed].rate);
+    }
+  }, [speed, isSpeaking]);
 
   const handleTTS = useCallback(async () => {
-    if (isSpeaking) {
-      Tts.stop();
+    if (isSpeaking || loadingAudio) {
+      stopSpeaking();
+      setIsSpeaking(false);
+      setLoadingAudio(false);
       return;
     }
     if (!stop) return;
@@ -152,19 +128,28 @@ export function StopDetailScreen({ navigation, route }: Props) {
       : (stop.descriptionEn || stop.description?.en || "");
 
     const text = `${titleText}. ${descText}`;
-    const ttsLang = language === "nl" ? "nl-NL" : "en-US";
 
+    setLoadingAudio(true);
     try {
-      await Tts.setDefaultLanguage(ttsLang);
-      await Tts.setDefaultRate(SPEED_PRESETS[speed].rate);
-      Tts.speak(text);
+      await speak(text, language, settings.voiceGender, SPEED_PRESETS[speed].rate, {
+        onStart: () => {
+          setLoadingAudio(false);
+          setIsSpeaking(true);
+        },
+        onFinish: () => {
+          setLoadingAudio(false);
+          setIsSpeaking(false);
+        },
+      });
     } catch (err) {
-      console.error("TTS Error:", err);
+      console.error("Deepgram TTS Error:", err);
+      setLoadingAudio(false);
+      setIsSpeaking(false);
     }
-  }, [isSpeaking, stop, language, speed]);
+  }, [isSpeaking, loadingAudio, stop, language, speed, settings.voiceGender]);
 
   const handleBack = () => {
-    Tts.stop();
+    stopSpeaking();
     navigation.goBack();
   };
 
@@ -321,14 +306,18 @@ export function StopDetailScreen({ navigation, route }: Props) {
         </ScrollView>
 
         <TouchableOpacity
-          style={[styles.fab, styles.fabLeft, isSpeaking && styles.fabActive]}
+          style={[styles.fab, styles.fabLeft, (isSpeaking || loadingAudio) && styles.fabActive]}
           onPress={handleTTS}
         >
-          <Ionicons
-            name={isSpeaking ? "stop" : "volume-high"}
-            size={26}
-            color={isSpeaking ? "#fff" : PRIMARY}
-          />
+          {loadingAudio ? (
+            <ActivityIndicator size="small" color="#fff" />
+          ) : (
+            <Ionicons
+              name={isSpeaking ? "stop" : "volume-high"}
+              size={26}
+              color={isSpeaking ? "#fff" : PRIMARY}
+            />
+          )}
         </TouchableOpacity>
 
         <TouchableOpacity
