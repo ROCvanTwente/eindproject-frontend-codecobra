@@ -1,3 +1,4 @@
+import React from "react";
 import { X, AlertTriangle, CheckCircle } from "lucide-react";
 import { Language } from "../../types";
 
@@ -89,8 +90,8 @@ export function AlertModal({
     variant === "error"
       ? "bg-red-100 text-red-600"
       : variant === "success"
-        ? "bg-green-100 text-green-600"
-        : "bg-blue-100 text-[#0066B3]";
+      ? "bg-green-100 text-green-600"
+      : "bg-blue-100 text-[#0066B3]";
 
   return (
     <ModalOverlay onClose={onClose}>
@@ -153,3 +154,4 @@ function ModalOverlay({
     </div>
   );
 }
+

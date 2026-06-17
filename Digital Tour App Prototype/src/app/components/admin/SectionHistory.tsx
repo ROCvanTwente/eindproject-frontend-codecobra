@@ -1,6 +1,8 @@
 import { Trash2 } from "lucide-react";
 import { Language } from "../../types";
 import { AdminSettings } from "../../data/settings";
+import { AlertModal, ConfirmModal } from "./AdminModal";
+import { useState } from "react";
 
 interface Props {
   language: Language;
@@ -23,18 +25,24 @@ export function SectionHistory({
   settings,
   onChange,
 }: Props) {
+  const [confirmClear, setConfirmClear] = useState(false);
+  const [successModal, setSuccessModal] = useState<string | null>(null);
+  const [errorModal, setErrorModal] = useState<string | null>(null);
   const clear = () => {
-    if (
-      confirm(
-        language === "nl"
-          ? "Hele geschiedenis wissen?"
-          : "Clear all history?",
-      )
-    ) {
+    setConfirmClear(true);
+  };
+
+  const doClear = () => {
+    try {
       onChange(
         { history: [] },
         { action: "clear-history", target: "all" },
       );
+      setSuccessModal(language === "nl" ? "Geschiedenis gewist." : "History cleared.");
+    } catch (err) {
+      setErrorModal(language === "nl" ? "Wissen mislukt." : "Clear failed.");
+    } finally {
+      setConfirmClear(false);
     }
   };
 
@@ -106,6 +114,36 @@ export function SectionHistory({
             </tbody>
           </table>
         </div>
+      )}
+      {confirmClear && (
+        <ConfirmModal
+          language={language}
+          title={language === "nl" ? "Geschiedenis wissen" : "Clear history"}
+          message={language === "nl" ? "Weet je zeker dat je alle logs wilt verwijderen?" : "Are you sure you want to delete all logs?"}
+          variant="danger"
+          onConfirm={doClear}
+          onCancel={() => setConfirmClear(false)}
+        />
+      )}
+
+      {successModal && (
+        <AlertModal
+          language={language}
+          title={language === "nl" ? "Gelukt" : "Success"}
+          message={successModal}
+          variant="success"
+          onClose={() => setSuccessModal(null)}
+        />
+      )}
+
+      {errorModal && (
+        <AlertModal
+          language={language}
+          title={language === "nl" ? "Fout" : "Error"}
+          message={errorModal}
+          variant="error"
+          onClose={() => setErrorModal(null)}
+        />
       )}
     </div>
   );
