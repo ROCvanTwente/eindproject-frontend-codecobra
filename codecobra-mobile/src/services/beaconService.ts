@@ -3,7 +3,6 @@ import { Platform, PermissionsAndroid } from "react-native";
 import {
   BeaconConfig,
   BEACONS,
-  BEACON_SERVICE_UUID,
   PATH_LOSS_EXPONENT,
   RSSI_WINDOW_SIZE,
   BEACON_STALE_THRESHOLD_MS,
@@ -130,13 +129,8 @@ function trilaterate(readings: BeaconReading[]): EstimatedPosition {
 
 // ── Beacon service singleton ──────────────────────────────────────────
 
-// All possible UUID key formats react-native-ble-plx might use for FDA5.
-const FDA5_KEYS = [
-  BEACON_SERVICE_UUID.toLowerCase(),
-  BEACON_SERVICE_UUID.toUpperCase(),
-  `0000${BEACON_SERVICE_UUID.toLowerCase()}-0000-1000-8000-00805f9b34fb`,
-  `0000${BEACON_SERVICE_UUID.toUpperCase()}-0000-1000-8000-00805F9B34FB`,
-];
+// Throttle debug logs: only log once per device to avoid flooding.
+const loggedDevices = new Set<string>();
 
 class BeaconService {
   private manager: BleManager | null = null;
@@ -147,32 +141,35 @@ class BeaconService {
   private updateTimer: ReturnType<typeof setInterval> | null = null;
 
   private matchBeacon(device: Device): BeaconConfig | null {
-    // 1. Check serviceData for FDA5 UUID key.
+    // Check ALL serviceData values — match on hex suffix regardless of UUID key.
     const sd = device.serviceData;
     if (sd) {
       for (const key of Object.keys(sd)) {
-        const isMatch = FDA5_KEYS.some(
-          (k) => key === k || key.toLowerCase() === k.toLowerCase(),
-        );
-        if (!isMatch) continue;
-
         const b64 = sd[key];
         if (!b64) continue;
-
         const bytes = base64ToBytes(b64);
         const hex = bytesToHex(bytes);
 
-        console.log(`[Beacon] FDA5 data: ${hex} from ${device.name || device.id}`);
-
         for (const beacon of BEACONS) {
           if (hex.endsWith(beacon.serviceDataSuffix)) {
+            if (!loggedDevices.has(beacon.id)) {
+              console.log(`[Beacon] ✓ Matched ${beacon.id} | key="${key}" hex=${hex}`);
+              loggedDevices.add(beacon.id);
+            }
             return beacon;
           }
+        }
+
+        // Debug: log unmatched BC01 devices so we can see the raw hex.
+        const name = device.name || device.localName || "";
+        if (name === "BC01" && !loggedDevices.has(device.id)) {
+          console.log(`[Beacon] BC01 unmatched | key="${key}" hex=${hex} id=${device.id}`);
+          loggedDevices.add(device.id);
         }
       }
     }
 
-    // 2. Check manufacturerData as fallback (some firmwares put it there).
+    // Fallback: check manufacturerData.
     if (device.manufacturerData) {
       const bytes = base64ToBytes(device.manufacturerData);
       const hex = bytesToHex(bytes);
@@ -183,20 +180,15 @@ class BeaconService {
       }
     }
 
-    // 3. If none of the above matched, try matching on any serviceData value.
-    if (sd) {
-      for (const key of Object.keys(sd)) {
-        const b64 = sd[key];
-        if (!b64) continue;
-        const bytes = base64ToBytes(b64);
-        const hex = bytesToHex(bytes);
-        for (const beacon of BEACONS) {
-          if (hex.endsWith(beacon.serviceDataSuffix)) {
-            console.log(`[Beacon] Matched ${beacon.id} via serviceData key "${key}": ${hex}`);
-            return beacon;
-          }
-        }
-      }
+    // Debug: log BC01 devices that have no serviceData at all.
+    const name = device.name || device.localName || "";
+    if (name === "BC01" && !loggedDevices.has("nosd-" + device.id)) {
+      console.log(
+        `[Beacon] BC01 no serviceData | id=${device.id}` +
+        ` | serviceData=${JSON.stringify(sd)}` +
+        ` | mfr=${device.manufacturerData ? "yes" : "no"}`,
+      );
+      loggedDevices.add("nosd-" + device.id);
     }
 
     return null;
@@ -239,13 +231,12 @@ class BeaconService {
       return;
     }
 
-    console.log("[BeaconService] Starting BLE scan...");
+    console.log("[BeaconService] Starting BLE scan for BC01 beacons...");
     this.scanning = true;
     this.smoother.clear();
     this.latestReadings.clear();
+    loggedDevices.clear();
 
-    // Scan for all devices (null UUID array) — we match on service data content.
-    // allowDuplicates: true so we keep getting RSSI updates.
     this.manager.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
       if (error) {
         console.warn("[BeaconService] Scan error:", error.message);
