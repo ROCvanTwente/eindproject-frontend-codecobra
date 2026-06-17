@@ -24,7 +24,7 @@ export interface BeaconConfig {
 }
 
 // The 16-bit service UUID the beacons advertise on.
-export const BEACON_SERVICE_UUID = "FDA5";
+export const BEACON_SERVICE_UUID = null;
 
 // Map positions will be set to match the stop positions from the API.
 // These defaults assume the beacons are placed at stops 1, 3, 5, 7, 9.
@@ -33,7 +33,7 @@ export const BEACONS: BeaconConfig[] = [
   {
     id: "beacon-1",
     name: "BC01",
-    serviceDataSuffix: "6C3AB5",
+    serviceDataSuffix: "10001-19641",
     mapX: 0,
     mapY: 0,
     nodeId: "beacon_stop1",
@@ -43,7 +43,7 @@ export const BEACONS: BeaconConfig[] = [
   {
     id: "beacon-2",
     name: "BC01",
-    serviceDataSuffix: "6C3AB6",
+    serviceDataSuffix: "10001-19641",
     mapX: 0,
     mapY: 0,
     nodeId: "beacon_stop3",
@@ -53,7 +53,7 @@ export const BEACONS: BeaconConfig[] = [
   {
     id: "beacon-3",
     name: "BC01",
-    serviceDataSuffix: "6C3B27",
+    serviceDataSuffix: "10001-19641",
     mapX: 0,
     mapY: 0,
     nodeId: "beacon_stop5",
@@ -63,7 +63,7 @@ export const BEACONS: BeaconConfig[] = [
   {
     id: "beacon-4",
     name: "BC01",
-    serviceDataSuffix: "6C3B32",
+    serviceDataSuffix: "10001-19641",
     mapX: 0,
     mapY: 0,
     nodeId: "beacon_stop7",
@@ -73,7 +73,7 @@ export const BEACONS: BeaconConfig[] = [
   {
     id: "beacon-5",
     name: "BC01",
-    serviceDataSuffix: "6C3ADC",
+    serviceDataSuffix: "10001-19641",
     mapX: 0,
     mapY: 0,
     nodeId: "beacon_stop9",
