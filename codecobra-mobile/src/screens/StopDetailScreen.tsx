@@ -270,7 +270,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
 
         <View style={styles.badge}>
           <Text style={styles.badgeText}>
-            {displayIndex} / {totalStopsCount}
+            {stop.order} / {totalStopsCount}
           </Text>
         </View>
       </View>
