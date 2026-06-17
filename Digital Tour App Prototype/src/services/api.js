@@ -2,7 +2,7 @@ import { getAuthHeaders, getSessionData } from "./authApi";
 import { logUserAction } from "./auditLogger";
 
 const API_BASE_URL =
-  import.meta.env?.VITE_API_BASE_URL ?? "https://localhost:7000/api";
+  import.meta.env?.VITE_API_BASE_URL ?? "https://digitalworkplacetestapi.runasp.net/api";
 
 function logApiMutation(action, target, metadata = undefined) {
   const actor = getSessionData()?.username ?? "anoniem";

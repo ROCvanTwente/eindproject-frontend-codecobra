@@ -3,12 +3,13 @@ import { Language } from "../../types";
 import { Pencil, Trash2 } from "lucide-react";
 import { ConfirmModal, AlertModal } from "../admin/AdminModal"; // Adjust this path if your folder structure differs
 // Import your API handlers directly here
-import { 
-  getAllPronunciationRules, 
-  createPronunciationRule, 
-  updatePronunciationRule, 
-  deletePronunciationRule 
+import {
+  getAllPronunciationRules,
+  createPronunciationRule,
+  updatePronunciationRule,
+  deletePronunciationRule
 } from "../../../services/api";
+import { previewPronunciation } from "../../../services/deepgram";
 
 export interface PronunciationRule {
   id: string;
@@ -35,6 +36,7 @@ export function SectionTextSpeech({ language }: Props) {
   // Modal State
   const [alertConfig, setAlertConfig] = useState<{ title: string; message: string; variant: "error" | "success" | "info" } | null>(null);
   const [deleteTargetId, setDeleteTargetId] = useState<string | null>(null);
+  const [previewing, setPreviewing] = useState(false);
 
   // ── Fetch Rules on Mount ──────────────────────────────────────────────────
   useEffect(() => {
@@ -167,13 +169,23 @@ export function SectionTextSpeech({ language }: Props) {
     setRuleLang(rule.lang);
   };
 
-  const handlePreview = (textToSpeak: string, langCode: Language) => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
-    
-    const sampleUtterance = new SpeechSynthesisUtterance(textToSpeak);
-    sampleUtterance.lang = langCode === "nl" ? "nl-NL" : "en-US";
-    window.speechSynthesis.speak(sampleUtterance);
+  const handlePreview = async () => {
+    if (!word.trim()) return;
+    try {
+      setPreviewing(true);
+      await previewPronunciation(word.trim(), ipa, ruleLang);
+    } catch (error) {
+      console.error("Failed to preview pronunciation:", error);
+      setAlertConfig({
+        title: language === "nl" ? "Fout bij afspelen" : "Playback Error",
+        message: language === "nl"
+          ? "Kon het woord niet afspelen via Deepgram."
+          : "Could not play the word via Deepgram.",
+        variant: "error"
+      });
+    } finally {
+      setPreviewing(false);
+    }
   };
 
   // ── Render Component ──────────────────────────────────────────────────────
@@ -255,11 +267,13 @@ export function SectionTextSpeech({ language }: Props) {
             )}
             <button
               type="button"
-              onClick={() => handlePreview(word, ruleLang)}
-              disabled={!word.trim()}
+              onClick={handlePreview}
+              disabled={!word.trim() || previewing}
               className="border border-[#0066B3] text-[#0066B3] px-4 py-2 rounded-lg text-sm hover:bg-blue-50 disabled:opacity-50"
             >
-              🔊 {language === "nl" ? "Test woord" : "Test word"}
+              🔊 {previewing
+                ? (language === "nl" ? "Afspelen..." : "Playing...")
+                : (language === "nl" ? "Test woord" : "Test word")}
             </button>
             <button
               type="submit"
