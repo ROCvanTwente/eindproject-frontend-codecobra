@@ -1,5 +1,5 @@
-import { BleManager, Device, State } from "react-native-ble-plx";
-import { Platform, PermissionsAndroid } from "react-native";
+import BleManager from "react-native-ble-manager";
+import { Platform, PermissionsAndroid, NativeEventEmitter, NativeModules } from "react-native";
 import {
   BeaconConfig,
   BEACONS,
@@ -35,55 +35,22 @@ function rssiToDistance(rssi: number, txPower: number): number {
   return Math.pow(10, ratio);
 }
 
-// ── Pure JS/TS Base64 → HEX Helper (Zonder atob) ──────────────────────
+// ── Raw Byte Array → HEX Helper ───────────────────────────────────────
 
 /**
- * Converteert een Base64 string rechtstreeks naar een Hex-string.
- * Dit vervangt 'atob' en werkt 100% veilig binnen React Native (Hermes engine).
+ * Zet de rauwe byte array uit BleManager advertising data direct om naar een HEX string.
+ * Veilig en snel zonder externe dependencies.
  */
-function base64ToHex(base64: string): string {
-  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-  const lookup = new Uint8Array(256);
-  for (let i = 0; i < chars.length; i++) {
-    lookup[chars.charCodeAt(i)] = i;
+function bytesToHex(bytes: number[]): string {
+  if (!bytes) return "";
+  let hex = "";
+  for (let i = 0; i < bytes.length; i++) {
+    let b = bytes[i] & 0xff;
+    let h = b.toString(16);
+    if (h.length === 1) hex += "0";
+    hex += h;
   }
-
-  let bufferLength = base64.length * 0.75;
-  if (base64[base64.length - 1] === "=") {
-    bufferLength--;
-    if (base64[base64.length - 2] === "=") {
-      bufferLength--;
-    }
-  }
-
-  let p = 0;
-  let hexResult = "";
-
-  for (let i = 0; i < base64.length; i += 4) {
-    const encoded1 = lookup[base64.charCodeAt(i)];
-    const encoded2 = lookup[base64.charCodeAt(i + 1)];
-    const encoded3 = lookup[base64.charCodeAt(i + 2)];
-    const encoded4 = lookup[base64.charCodeAt(i + 3)];
-
-    const bytes1 = (encoded1 << 2) | (encoded2 >> 4);
-    const bytes2 = ((encoded2 & 15) << 4) | (encoded3 >> 2);
-    const bytes3 = ((encoded3 & 3) << 6) | (encoded4 & 63);
-
-    if (p < bufferLength) {
-      hexResult += bytes1.toString(16).padStart(2, "0");
-      p++;
-    }
-    if (p < bufferLength) {
-      hexResult += bytes2.toString(16).padStart(2, "0");
-      p++;
-    }
-    if (p < bufferLength) {
-      hexResult += bytes3.toString(16).padStart(2, "0");
-      p++;
-    }
-  }
-
-  return hexResult.toUpperCase();
+  return hex.toUpperCase();
 }
 
 // ── Sliding-window RSSI smoother ──────────────────────────────────────
@@ -107,7 +74,7 @@ class RssiSmoother {
   }
 }
 
-// ── Trilateration (weighted centroid) ─────────────────────────────────
+// ── Trilateration ─────────────────────────────────────────────────────
 
 function trilaterate(readings: BeaconReading[]): EstimatedPosition {
   if (readings.length === 0) {
@@ -151,51 +118,69 @@ function trilaterate(readings: BeaconReading[]): EstimatedPosition {
 // ── Beacon service singleton ──────────────────────────────────────────
 
 const loggedIds = new Set<string>();
+const BleManagerModule = NativeModules.BleManager;
+const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 
 class BeaconService {
-  private manager: BleManager | null = null;
   private scanning = false;
   private smoother = new RssiSmoother();
   private latestReadings = new Map<string, BeaconReading>();
   private listeners: PositionCallback[] = [];
   private updateTimer = null as ReturnType<typeof setInterval> | null;
+  private discoverListener: any = null;
+
+  constructor() {
+    // Start de native Bluetooth manager bij het initialiseren
+    BleManager.start({ showAlert: true })
+      .then(() => console.log("[BeaconService] Native BleManager succesvol gestart."))
+      .catch((err) => console.error("[BeaconService] Fout bij starten BleManager:", err));
+  }
 
   /**
-   * Matcht apparaten op basis van de Service Data (UUID FDA5).
+   * Ontleedt het binnenkomende apparaat. Haalt de service data op en matcht met BEACONS config.
    */
-  private matchBeacon(device: Device): BeaconConfig | null {
-    if (!device.serviceData) return null;
+  private handleDiscoveredDevice(device: any) {
+    if (!device || device.rssi == null) return;
 
-    // Zoek naar de key in de serviceData map die "FDA5" bevat
-    const fda5Key = Object.keys(device.serviceData).find((key) =>
+    // Haal de advertising data op. Verschilt per platform in deze library.
+    const advertising = device.advertising;
+    if (!advertising || !advertising.serviceData) return;
+
+    // Zoek naar service data gekoppeld aan FDA5
+    // In react-native-ble-manager zit dit vaak in een map onder de key "fda5" of "0000fda5..."
+    const fda5Key = Object.keys(advertising.serviceData).find((key) =>
       key.toUpperCase().includes("FDA5")
     );
 
-    if (!fda5Key) return null;
+    if (!fda5Key) return;
 
-    const base64Data = device.serviceData[fda5Key];
-    if (!base64Data) return null;
+    const rawData = advertising.serviceData[fda5Key];
+    if (!rawData || !rawData.bytes) return;
 
-    // Zet de rauwe bytes om naar de HEX string via onze nieuwe standalone helper
-    const hexData = base64ToHex(base64Data); // Bijv: "6427114CB9C300006C3B27"
+    // Zet de bytes om naar de bekende Hex string (bijv: "6427114CB9C300006C3B27")
+    const hexData = bytesToHex(rawData.bytes);
 
-    // Doorloop jullie BEACONS configuratie array
+    // Zoek naar match in onze configuratie
     for (const beacon of BEACONS) {
       const targetSuffix = beacon.macSuffix.toUpperCase();
-
-      // Controleer of de binnengekomen service data eindigt op jullie macSuffix
       if (hexData.endsWith(targetSuffix)) {
         if (!loggedIds.has(beacon.id)) {
-          console.log(
-            `[Beacon] ✓ MATCH GEVONDEN! ${beacon.id} | Hex=${hexData} | RSSI=${device.rssi}`
-          );
+          console.log(`[Beacon] ✓ BEACON MATCH! ${beacon.id} | RSSI=${device.rssi} | Hex=${hexData}`);
           loggedIds.add(beacon.id);
         }
-        return beacon;
+
+        const smoothedRssi = this.smoother.push(beacon.id, device.rssi);
+        const distance = rssiToDistance(smoothedRssi, beacon.txPower);
+
+        this.latestReadings.set(beacon.id, {
+          beacon,
+          rssi: smoothedRssi,
+          distance,
+          timestamp: Date.now(),
+        });
+        break;
       }
     }
-
-    return null;
   }
 
   // ── Public API ────────────────────────────────────────────────────
@@ -209,9 +194,7 @@ class BeaconService {
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         ]);
-        return Object.values(results).every(
-          (v) => v === PermissionsAndroid.RESULTS.GRANTED
-        );
+        return Object.values(results).every((v) => v === PermissionsAndroid.RESULTS.GRANTED);
       } else {
         const result = await PermissionsAndroid.request(
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
@@ -224,48 +207,34 @@ class BeaconService {
 
   async startScanning(): Promise<void> {
     if (this.scanning) return;
-    if (!this.manager) {
-      this.manager = new BleManager();
+
+    // Forceer Android om Bluetooth fysiek in te schakelen (voorkomt radiostilte!)
+    if (Platform.OS === "android") {
+      try {
+        await BleManager.enableBluetooth();
+      } catch (e) {
+        console.warn("[BeaconService] Gebruiker weigerde Bluetooth aan te zetten via pop-up.");
+        return;
+      }
     }
 
-    const state = await this.manager.state();
-    if (state !== State.PoweredOn) {
-      console.warn("[BeaconService] Bluetooth not powered on:", state);
-      return;
-    }
-
-    console.log("[BeaconService] Starting BLE scan (matching on FDA5 Service Data)...");
+    console.log("[BeaconService] Scannen via Native Events gestart...");
     this.scanning = true;
     this.smoother.clear();
     this.latestReadings.clear();
     loggedIds.clear();
 
-    // We scannen specifiek op de Service UUID fda5 om ruis te filteren
-    this.manager.startDeviceScan(
-      ["0000fda5-0000-1000-8000-00805f9b34fb", "fda5"],
-      { allowDuplicates: true },
-      (error, device) => {
-        if (error) {
-          if (error.message.includes("cancelled") || error.message.includes("Cancelled")) return;
-          console.warn("[BeaconService] Scan error:", error.message);
-          return;
-        }
-        if (!device || device.rssi == null) return;
-
-        const beacon = this.matchBeacon(device);
-        if (!beacon) return;
-
-        const smoothedRssi = this.smoother.push(beacon.id, device.rssi);
-        const distance = rssiToDistance(smoothedRssi, beacon.txPower);
-
-        this.latestReadings.set(beacon.id, {
-          beacon,
-          rssi: smoothedRssi,
-          distance,
-          timestamp: Date.now(),
-        });
-      }
+    // Registreer de native event listener. Dit vangt ELK bluetooth-pakket direct op
+    this.discoverListener = bleManagerEmitter.addListener(
+      "BleManagerDiscoverPeripheral",
+      (device) => this.handleDiscoveredDevice(device)
     );
+
+    // Start de hardware scan. 0 = oneindig scannen, true = sta duplicaten toe (essentieel voor live RSSI updates!)
+    // We scannen op de service UUID fda5 om batterij te besparen en ruis uit te sluiten
+    BleManager.scan(["0000fda5-0000-1000-8000-00805f9b34fb", "fda5"], 0, true)
+      .then(() => console.log("[BeaconService] Hardware scan-opdracht succesvol verstuurd."))
+      .catch((err) => console.error("[BeaconService] Hardware scan mislukt:", err));
 
     this.updateTimer = setInterval(() => this.computePosition(), 500);
   }
@@ -276,9 +245,13 @@ class BeaconService {
       clearInterval(this.updateTimer);
       this.updateTimer = null;
     }
-    try {
-      this.manager?.stopDeviceScan();
-    } catch (_e) {}
+    if (this.discoverListener) {
+      this.discoverListener.remove();
+      this.discoverListener = null;
+    }
+    BleManager.stopScan()
+      .then(() => console.log("[BeaconService] Hardware scan gestopt."))
+      .catch((_e) => {});
   }
 
   onPosition(cb: PositionCallback): () => void {
@@ -294,8 +267,6 @@ class BeaconService {
 
   destroy(): void {
     this.stopScanning();
-    this.manager?.destroy();
-    this.manager = null;
   }
 
   // ── Internal ──────────────────────────────────────────────────────

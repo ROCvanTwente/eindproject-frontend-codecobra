@@ -4,7 +4,7 @@ import {
   beaconService,
   EstimatedPosition,
 } from "../services/beaconService";
-import { calibrateBeaconPositions, BEACONS } from "../config/beacons";
+import { calibrateBeaconPositions } from "../config/beacons";
 import { Stop } from "../types";
 
 export interface BeaconTrackingState {
@@ -20,8 +20,7 @@ export function useBeaconTracking(
   stops: Stop[],
   enabled: boolean = true,
 ): BeaconTrackingState {
-  const [state, setState] = useState<BeaconTrackingState>({
-    position: null,
+  const [state, setState] = useState<BeaconTrackingState>({\n    position: null,
     accuracy: Infinity,
     beaconsInRange: 0,
     nearestBeaconId: null,
@@ -84,14 +83,15 @@ export function useBeaconTracking(
         beaconService.stopScanning();
       }
     };
+
     const appStateSub = AppState.addEventListener("change", handleAppState);
 
     return () => {
-      unsubPosition?.();
+      if (unsubPosition) unsubPosition();
       beaconService.stopScanning();
       appStateSub.remove();
     };
-  }, [enabled]);
+  }, [enabled, stops]);
 
   return state;
 }
