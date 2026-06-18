@@ -35,35 +35,6 @@ function rssiToDistance(rssi: number, txPower: number): number {
   return Math.pow(10, ratio);
 }
 
-// ── Base64 → Hex Utilities ───────────────────────────────────────────
-
-const B64 = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
-const B64_LOOKUP = new Uint8Array(128);
-for (let i = 0; i < B64.length; i++) B64_LOOKUP[B64.charCodeAt(i)] = i;
-
-function base64ToBytes(b64: string): number[] {
-  const bytes: number[] = [];
-  let buf = 0;
-  let bits = 0;
-  for (const ch of b64) {
-    if (ch === "=") break;
-    const code = ch.charCodeAt(0);
-    if (code >= 128) continue;
-    const val = B64_LOOKUP[code];
-    buf = (buf << 6) | val;
-    bits += 6;
-    if (bits >= 8) {
-      bits -= 8;
-      bytes.push((buf >> bits) & 0xff);
-    }
-  }
-  return bytes;
-}
-
-function bytesToHex(bytes: number[]): string {
-  return bytes.map((b) => b.toString(16).padStart(2, "0").toUpperCase()).join("");
-}
-
 // ── Sliding-window RSSI smoother ──────────────────────────────────────
 
 class RssiSmoother {
@@ -85,7 +56,7 @@ class RssiSmoother {
   }
 }
 
-// ── Trilateration ─────────────────────────────────────────────────────
+// ── Trilateration (weighted centroid) ─────────────────────────────────
 
 function trilaterate(readings: BeaconReading[]): EstimatedPosition {
   if (readings.length === 0) {
@@ -129,7 +100,7 @@ function trilaterate(readings: BeaconReading[]): EstimatedPosition {
 
 // ── Beacon service singleton ──────────────────────────────────────────
 
-const loggedKeys = new Set<string>();
+const loggedIds = new Set<string>();
 
 class BeaconService {
   private manager: BleManager | null = null;
@@ -138,54 +109,20 @@ class BeaconService {
   private latestReadings = new Map<string, BeaconReading>();
   private listeners: PositionCallback[] = [];
   private updateTimer: ReturnType<typeof setInterval> | null = null;
-  private dutyCycleTimer: ReturnType<typeof setTimeout> | null = null;
 
+  // Match by MAC address suffix.
+  // On Android, device.id is the MAC (e.g. "C3:00:00:6C:3A:B5").
+  // We strip colons and check if it ends with our macSuffix.
   private matchBeacon(device: Device): BeaconConfig | null {
-    // Strategy 1: Check manufacturerData (iBeacon format).
-    // iBeacon layout: 4C00 0215 [16-byte UUID] [2-byte Major] [2-byte Minor] [TX]
-    // Our suffix = Major(2 bytes) + Minor low byte, e.g. "6C3AB5" = Major 0x6C3A, Minor 0x00B5
-    if (device.manufacturerData) {
-      try {
-        const bytes = base64ToBytes(device.manufacturerData);
-        const hex = bytesToHex(bytes);
+    const mac = (device.id || "").replace(/:/g, "").toUpperCase();
 
-        // Log any iBeacon for debugging (Apple prefix 4C000215).
-        if (hex.startsWith("4C000215") && !loggedKeys.has(hex.slice(-12))) {
-          const tail = hex.slice(-12);
-          console.log(`[iBeacon] raw=${hex.slice(-12)} full_len=${bytes.length} name=${device.name || device.id}`);
-          loggedKeys.add(tail);
+    for (const beacon of BEACONS) {
+      if (mac.endsWith(beacon.macSuffix)) {
+        if (!loggedIds.has(beacon.id)) {
+          console.log(`[Beacon] ✓ Matched ${beacon.id} | MAC=${device.id} | RSSI=${device.rssi}`);
+          loggedIds.add(beacon.id);
         }
-
-        for (const beacon of BEACONS) {
-          if (hex.includes(beacon.serviceDataSuffix)) {
-            if (!loggedKeys.has("match-" + beacon.id)) {
-              console.log(`[Beacon] ✓ Matched ${beacon.id} via manufacturerData | suffix=${beacon.serviceDataSuffix}`);
-              loggedKeys.add("match-" + beacon.id);
-            }
-            return beacon;
-          }
-        }
-      } catch (_e) {}
-    }
-
-    // Strategy 2: Check serviceData (non-iBeacon / FDA5 format).
-    const sd = device.serviceData;
-    if (sd) {
-      for (const key of Object.keys(sd)) {
-        const b64 = sd[key];
-        if (!b64) continue;
-        const bytes = base64ToBytes(b64);
-        const hex = bytesToHex(bytes);
-
-        for (const beacon of BEACONS) {
-          if (hex.includes(beacon.serviceDataSuffix)) {
-            if (!loggedKeys.has("match-" + beacon.id)) {
-              console.log(`[Beacon] ✓ Matched ${beacon.id} via serviceData key="${key}" | suffix=${beacon.serviceDataSuffix}`);
-              loggedKeys.add("match-" + beacon.id);
-            }
-            return beacon;
-          }
-        }
+        return beacon;
       }
     }
 
@@ -225,32 +162,20 @@ class BeaconService {
 
     const state = await this.manager.state();
     if (state !== State.PoweredOn) {
-      console.warn("[BeaconService] Bluetooth is turned off:", state);
+      console.warn("[BeaconService] Bluetooth not powered on:", state);
       return;
     }
 
-    console.log("[BeaconService] Starting BLE scan...");
+    console.log("[BeaconService] Starting BLE scan (matching on MAC suffix)...");
     this.scanning = true;
     this.smoother.clear();
     this.latestReadings.clear();
-    loggedKeys.clear();
-
-    this.startScan();
-    this.updateTimer = setInterval(() => this.computePosition(), 500);
-  }
-
-  private startScan(): void {
-    if (!this.scanning || !this.manager) return;
+    loggedIds.clear();
 
     this.manager.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
       if (error) {
         if (error.message.includes("cancelled") || error.message.includes("Cancelled")) return;
-        // If scan fails, retry once after a short delay.
-        console.warn("[BeaconService] Scan error, retrying in 1s:", error.message);
-        this.dutyCycleTimer = setTimeout(() => {
-          try { this.manager?.stopDeviceScan(); } catch (_e) {}
-          this.startScan();
-        }, 1000);
+        console.warn("[BeaconService] Scan error:", error.message);
         return;
       }
       if (!device || device.rssi == null) return;
@@ -268,22 +193,19 @@ class BeaconService {
         timestamp: Date.now(),
       });
     });
+
+    this.updateTimer = setInterval(() => this.computePosition(), 500);
   }
 
   stopScanning(): void {
     this.scanning = false;
-    if (this.dutyCycleTimer) {
-      clearTimeout(this.dutyCycleTimer);
-      this.dutyCycleTimer = null;
-    }
     if (this.updateTimer) {
       clearInterval(this.updateTimer);
       this.updateTimer = null;
     }
     try {
       this.manager?.stopDeviceScan();
-    } catch (e) {}
-    console.log("[BeaconService] Scanner paused cleanly.");
+    } catch (_e) {}
   }
 
   onPosition(cb: PositionCallback): () => void {
