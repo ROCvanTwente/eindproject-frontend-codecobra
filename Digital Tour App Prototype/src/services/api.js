@@ -4,6 +4,10 @@ import { logUserAction } from "./auditLogger";
 const API_BASE_URL =
   import.meta.env?.VITE_API_BASE_URL ?? "https://digitalworkplacetestapi.runasp.net/api";
 
+const LANDING_URL_STORAGE_KEY = "admin_landing_page_url";
+const LANDING_URL_API_MODE_KEY = "admin_landing_url_api_mode";
+let landingUrlApiMode = "unknown";
+
 function logApiMutation(action, target, metadata = undefined) {
   const actor = getSessionData()?.username ?? "anoniem";
   void logUserAction({
@@ -12,9 +16,6 @@ function logApiMutation(action, target, metadata = undefined) {
     target,
     metadata,
   });
-  const LANDING_URL_STORAGE_KEY = "admin_landing_page_url";
-  const LANDING_URL_API_MODE_KEY = "admin_landing_url_api_mode";
-  let landingUrlApiMode = "unknown";
 }
 
 function toApiRoot(url) {
@@ -181,10 +182,18 @@ export function mapTourStopResponse(stop) {
   };
 
   if (mediaUrl) {
-    mapped.media = {
-      type: detectMediaKind(mediaUrl),
-      url: mediaUrl,
-    };
+    try {
+      const parsed = JSON.parse(mediaUrl);
+      if (Array.isArray(parsed)) {
+        mapped.media = parsed
+          .map((u) => ({ type: detectMediaKind(String(u)), url: String(u) }))
+          .filter((m) => m.url);
+      } else {
+        mapped.media = [{ type: detectMediaKind(mediaUrl), url: mediaUrl }];
+      }
+    } catch {
+      mapped.media = [{ type: detectMediaKind(mediaUrl), url: mediaUrl }];
+    }
   }
 
   return mapped;
@@ -213,9 +222,14 @@ export function buildTourStopFormData(stop, options = {}) {
   appendFormValue(formData, "PositionY", stop.mapY);
   appendFormValue(formData, "EstimatedDuration", stop.estimatedDuration);
 
-  const mediaUrl = stop.media?.url;
-  if (mediaUrl || includeEmptyMediaUrl) {
-    appendFormValue(formData, "MediaUrl", mediaUrl ?? "");
+  const mediaItems = Array.isArray(stop.media) ? stop.media : [];
+  const mediaUrls = mediaItems.map((m) => m?.url).filter(Boolean);
+  if (mediaUrls.length === 1) {
+    appendFormValue(formData, "MediaUrl", mediaUrls[0]);
+  } else if (mediaUrls.length > 1) {
+    appendFormValue(formData, "MediaUrl", JSON.stringify(mediaUrls));
+  } else if (includeEmptyMediaUrl) {
+    appendFormValue(formData, "MediaUrl", "");
   }
 
   return formData;
