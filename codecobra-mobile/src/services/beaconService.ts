@@ -35,6 +35,57 @@ function rssiToDistance(rssi: number, txPower: number): number {
   return Math.pow(10, ratio);
 }
 
+// ── Pure JS/TS Base64 → HEX Helper (Zonder atob) ──────────────────────
+
+/**
+ * Converteert een Base64 string rechtstreeks naar een Hex-string.
+ * Dit vervangt 'atob' en werkt 100% veilig binnen React Native (Hermes engine).
+ */
+function base64ToHex(base64: string): string {
+  const chars = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
+  const lookup = new Uint8Array(256);
+  for (let i = 0; i < chars.length; i++) {
+    lookup[chars.charCodeAt(i)] = i;
+  }
+
+  let bufferLength = base64.length * 0.75;
+  if (base64[base64.length - 1] === "=") {
+    bufferLength--;
+    if (base64[base64.length - 2] === "=") {
+      bufferLength--;
+    }
+  }
+
+  let p = 0;
+  let hexResult = "";
+
+  for (let i = 0; i < base64.length; i += 4) {
+    const encoded1 = lookup[base64.charCodeAt(i)];
+    const encoded2 = lookup[base64.charCodeAt(i + 1)];
+    const encoded3 = lookup[base64.charCodeAt(i + 2)];
+    const encoded4 = lookup[base64.charCodeAt(i + 3)];
+
+    const bytes1 = (encoded1 << 2) | (encoded2 >> 4);
+    const bytes2 = ((encoded2 & 15) << 4) | (encoded3 >> 2);
+    const bytes3 = ((encoded3 & 3) << 6) | (encoded4 & 63);
+
+    if (p < bufferLength) {
+      hexResult += bytes1.toString(16).padStart(2, "0");
+      p++;
+    }
+    if (p < bufferLength) {
+      hexResult += bytes2.toString(16).padStart(2, "0");
+      p++;
+    }
+    if (p < bufferLength) {
+      hexResult += bytes3.toString(16).padStart(2, "0");
+      p++;
+    }
+  }
+
+  return hexResult.toUpperCase();
+}
+
 // ── Sliding-window RSSI smoother ──────────────────────────────────────
 
 class RssiSmoother {
@@ -64,7 +115,6 @@ function trilaterate(readings: BeaconReading[]): EstimatedPosition {
   }
 
   const sorted = [...readings].sort((a, b) => a.distance - b.distance);
-
   if (sorted.length === 1) {
     const r = sorted[0];
     return {
@@ -108,18 +158,37 @@ class BeaconService {
   private smoother = new RssiSmoother();
   private latestReadings = new Map<string, BeaconReading>();
   private listeners: PositionCallback[] = [];
-  private updateTimer: ReturnType<typeof setInterval> | null = null;
+  private updateTimer = null as ReturnType<typeof setInterval> | null;
 
-  // Match by MAC address suffix.
-  // On Android, device.id is the MAC (e.g. "C3:00:00:6C:3A:B5").
-  // We strip colons and check if it ends with our macSuffix.
+  /**
+   * Matcht apparaten op basis van de Service Data (UUID FDA5).
+   */
   private matchBeacon(device: Device): BeaconConfig | null {
-    const mac = (device.id || "").replace(/:/g, "").toUpperCase();
+    if (!device.serviceData) return null;
 
+    // Zoek naar de key in de serviceData map die "FDA5" bevat
+    const fda5Key = Object.keys(device.serviceData).find((key) =>
+      key.toUpperCase().includes("FDA5")
+    );
+
+    if (!fda5Key) return null;
+
+    const base64Data = device.serviceData[fda5Key];
+    if (!base64Data) return null;
+
+    // Zet de rauwe bytes om naar de HEX string via onze nieuwe standalone helper
+    const hexData = base64ToHex(base64Data); // Bijv: "6427114CB9C300006C3B27"
+
+    // Doorloop jullie BEACONS configuratie array
     for (const beacon of BEACONS) {
-      if (mac.endsWith(beacon.macSuffix)) {
+      const targetSuffix = beacon.macSuffix.toUpperCase();
+
+      // Controleer of de binnengekomen service data eindigt op jullie macSuffix
+      if (hexData.endsWith(targetSuffix)) {
         if (!loggedIds.has(beacon.id)) {
-          console.log(`[Beacon] ✓ Matched ${beacon.id} | MAC=${device.id} | RSSI=${device.rssi}`);
+          console.log(
+            `[Beacon] ✓ MATCH GEVONDEN! ${beacon.id} | Hex=${hexData} | RSSI=${device.rssi}`
+          );
           loggedIds.add(beacon.id);
         }
         return beacon;
@@ -134,18 +203,18 @@ class BeaconService {
   async requestPermissions(): Promise<boolean> {
     if (Platform.OS === "android") {
       const apiLevel = Platform.Version;
-      if (apiLevel >= 31) {
+      if (typeof apiLevel === "number" && apiLevel >= 31) {
         const results = await PermissionsAndroid.requestMultiple([
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_SCAN,
           PermissionsAndroid.PERMISSIONS.BLUETOOTH_CONNECT,
           PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
         ]);
         return Object.values(results).every(
-          (v) => v === PermissionsAndroid.RESULTS.GRANTED,
+          (v) => v === PermissionsAndroid.RESULTS.GRANTED
         );
       } else {
         const result = await PermissionsAndroid.request(
-          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION,
+          PermissionsAndroid.PERMISSIONS.ACCESS_FINE_LOCATION
         );
         return result === PermissionsAndroid.RESULTS.GRANTED;
       }
@@ -155,7 +224,6 @@ class BeaconService {
 
   async startScanning(): Promise<void> {
     if (this.scanning) return;
-
     if (!this.manager) {
       this.manager = new BleManager();
     }
@@ -166,33 +234,38 @@ class BeaconService {
       return;
     }
 
-    console.log("[BeaconService] Starting BLE scan (matching on MAC suffix)...");
+    console.log("[BeaconService] Starting BLE scan (matching on FDA5 Service Data)...");
     this.scanning = true;
     this.smoother.clear();
     this.latestReadings.clear();
     loggedIds.clear();
 
-    this.manager.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
-      if (error) {
-        if (error.message.includes("cancelled") || error.message.includes("Cancelled")) return;
-        console.warn("[BeaconService] Scan error:", error.message);
-        return;
+    // We scannen specifiek op de Service UUID fda5 om ruis te filteren
+    this.manager.startDeviceScan(
+      ["0000fda5-0000-1000-8000-00805f9b34fb", "fda5"],
+      { allowDuplicates: true },
+      (error, device) => {
+        if (error) {
+          if (error.message.includes("cancelled") || error.message.includes("Cancelled")) return;
+          console.warn("[BeaconService] Scan error:", error.message);
+          return;
+        }
+        if (!device || device.rssi == null) return;
+
+        const beacon = this.matchBeacon(device);
+        if (!beacon) return;
+
+        const smoothedRssi = this.smoother.push(beacon.id, device.rssi);
+        const distance = rssiToDistance(smoothedRssi, beacon.txPower);
+
+        this.latestReadings.set(beacon.id, {
+          beacon,
+          rssi: smoothedRssi,
+          distance,
+          timestamp: Date.now(),
+        });
       }
-      if (!device || device.rssi == null) return;
-
-      const beacon = this.matchBeacon(device);
-      if (!beacon) return;
-
-      const smoothedRssi = this.smoother.push(beacon.id, device.rssi);
-      const distance = rssiToDistance(smoothedRssi, beacon.txPower);
-
-      this.latestReadings.set(beacon.id, {
-        beacon,
-        rssi: smoothedRssi,
-        distance,
-        timestamp: Date.now(),
-      });
-    });
+    );
 
     this.updateTimer = setInterval(() => this.computePosition(), 500);
   }
@@ -229,7 +302,6 @@ class BeaconService {
 
   private computePosition(): void {
     const now = Date.now();
-
     const fresh: BeaconReading[] = [];
     for (const [id, reading] of this.latestReadings) {
       if (now - reading.timestamp > BEACON_STALE_THRESHOLD_MS) {
