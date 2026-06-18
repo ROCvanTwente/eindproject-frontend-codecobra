@@ -229,30 +229,28 @@ class BeaconService {
       return;
     }
 
-    console.log("[BeaconService] Starting clean iBeacon processing tracking sequence...");
+    console.log("[BeaconService] Starting BLE scan...");
     this.scanning = true;
     this.smoother.clear();
     this.latestReadings.clear();
     loggedKeys.clear();
 
-    this.runScanIteration();
+    this.startScan();
     this.updateTimer = setInterval(() => this.computePosition(), 500);
   }
 
-  // Safe intermittent scanning loop to bypass background system restrictions
-  private runScanIteration(): void {
+  private startScan(): void {
     if (!this.scanning || !this.manager) return;
 
-    try {
-      this.manager.stopDeviceScan();
-    } catch (e) {}
-
-    // Scan with an open filter (null) to extract the custom manufacturer payload fields
-    this.manager.startDeviceScan(null, { allowDuplicates: true, scanMode: 2 }, (error, device) => {
+    this.manager.startDeviceScan(null, { allowDuplicates: true }, (error, device) => {
       if (error) {
-        // "cancelled" is expected when the duty cycle restarts the scan.
         if (error.message.includes("cancelled") || error.message.includes("Cancelled")) return;
-        console.warn("[BeaconService] Scan error:", error.message);
+        // If scan fails, retry once after a short delay.
+        console.warn("[BeaconService] Scan error, retrying in 1s:", error.message);
+        this.dutyCycleTimer = setTimeout(() => {
+          try { this.manager?.stopDeviceScan(); } catch (_e) {}
+          this.startScan();
+        }, 1000);
         return;
       }
       if (!device || device.rssi == null) return;
@@ -270,11 +268,6 @@ class BeaconService {
         timestamp: Date.now(),
       });
     });
-
-    // Cycle the scan window every 4 seconds to clear native caches and avoid deny lists
-    this.dutyCycleTimer = setTimeout(() => {
-      if (this.scanning) this.runScanIteration();
-    }, 4000);
   }
 
   stopScanning(): void {
