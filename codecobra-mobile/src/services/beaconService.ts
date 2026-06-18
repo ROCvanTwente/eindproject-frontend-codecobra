@@ -141,36 +141,52 @@ class BeaconService {
   private dutyCycleTimer: ReturnType<typeof setTimeout> | null = null;
 
   private matchBeacon(device: Device): BeaconConfig | null {
-    if (!device.manufacturerData) return null;
+    // Strategy 1: Check manufacturerData (iBeacon format).
+    // iBeacon layout: 4C00 0215 [16-byte UUID] [2-byte Major] [2-byte Minor] [TX]
+    // Our suffix = Major(2 bytes) + Minor low byte, e.g. "6C3AB5" = Major 0x6C3A, Minor 0x00B5
+    if (device.manufacturerData) {
+      try {
+        const bytes = base64ToBytes(device.manufacturerData);
+        const hex = bytesToHex(bytes);
 
-    try {
-      const bytes = base64ToBytes(device.manufacturerData);
-      
-      // Strict structural validation for standard iBeacon payloads:
-      // Must contain Apple Company code [0x4C, 0x00] and iBeacon data type indicator [0x02, 0x15]
-      if (bytes.length >= 23 && bytes[0] === 0x4C && bytes[1] === 0x00 && bytes[2] === 0x02 && bytes[3] === 0x15) {
-        
-        // Extract 16-bit Major Value from index positions 20 & 21
-        const major = (bytes[20] << 8) | bytes[21];
-        // Extract 16-bit Minor Value from index positions 22 & 23
-        const minor = (bytes[22] << 8) | bytes[23];
-        
-        const deviceMatchKey = `${major}-${minor}`;
-
-        // Print diagnostic tracking keys to trace incoming target validation status
-        if (!loggedKeys.has(deviceMatchKey)) {
-          console.log(`[iBeacon Found] Major: ${major} | Minor: ${minor} | RSSI: ${device.rssi}`);
-          loggedKeys.add(deviceMatchKey);
+        // Log any iBeacon for debugging (Apple prefix 4C000215).
+        if (hex.startsWith("4C000215") && !loggedKeys.has(hex.slice(-12))) {
+          const tail = hex.slice(-12);
+          console.log(`[iBeacon] raw=${hex.slice(-12)} full_len=${bytes.length} name=${device.name || device.id}`);
+          loggedKeys.add(tail);
         }
 
         for (const beacon of BEACONS) {
-          if (beacon.serviceDataSuffix === deviceMatchKey) {
+          if (hex.includes(beacon.serviceDataSuffix)) {
+            if (!loggedKeys.has("match-" + beacon.id)) {
+              console.log(`[Beacon] ✓ Matched ${beacon.id} via manufacturerData | suffix=${beacon.serviceDataSuffix}`);
+              loggedKeys.add("match-" + beacon.id);
+            }
+            return beacon;
+          }
+        }
+      } catch (_e) {}
+    }
+
+    // Strategy 2: Check serviceData (non-iBeacon / FDA5 format).
+    const sd = device.serviceData;
+    if (sd) {
+      for (const key of Object.keys(sd)) {
+        const b64 = sd[key];
+        if (!b64) continue;
+        const bytes = base64ToBytes(b64);
+        const hex = bytesToHex(bytes);
+
+        for (const beacon of BEACONS) {
+          if (hex.includes(beacon.serviceDataSuffix)) {
+            if (!loggedKeys.has("match-" + beacon.id)) {
+              console.log(`[Beacon] ✓ Matched ${beacon.id} via serviceData key="${key}" | suffix=${beacon.serviceDataSuffix}`);
+              loggedKeys.add("match-" + beacon.id);
+            }
             return beacon;
           }
         }
       }
-    } catch (e) {
-      // Catch malformed structures gracefully
     }
 
     return null;
@@ -234,9 +250,9 @@ class BeaconService {
     // Scan with an open filter (null) to extract the custom manufacturer payload fields
     this.manager.startDeviceScan(null, { allowDuplicates: true, scanMode: 2 }, (error, device) => {
       if (error) {
-        // If the native module drops the connection, attempt a soft reset of the loop
-        if (error.message.includes("cancelled")) return;
-        console.warn("[BeaconService] System loop drop:", error.message);
+        // "cancelled" is expected when the duty cycle restarts the scan.
+        if (error.message.includes("cancelled") || error.message.includes("Cancelled")) return;
+        console.warn("[BeaconService] Scan error:", error.message);
         return;
       }
       if (!device || device.rssi == null) return;
