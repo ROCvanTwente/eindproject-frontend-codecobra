@@ -39,9 +39,8 @@ export function SectionStats({
           try {
             const data: QrStatsResponse = await getNumberScansQrCode(stop.id);
             return { stopId: stop.id, scanCount: data.scanCount };
-          } catch (error) {
-            console.error(`Failed to fetch stats for stop ${stop.id}:`, error);
-            return { stopId: stop.id, scanCount: 0 }; // Fallback to 0 if API fails for a stop
+          } catch {
+            return { stopId: stop.id, scanCount: 0 };
           }
         });
 
