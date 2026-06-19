@@ -10,7 +10,7 @@ import {
   Plus,
 } from "lucide-react";
 import { Language, MediaItem, Stop } from "../../types";
-import { resolveMediaUrl, saveTourStop, updateStopMedia, uploadMedia } from "../../../services/api";
+import { resolveMediaUrl, saveTourStop, uploadMedia } from "../../../services/api";
 
 interface Props {
   language: Language;
@@ -25,11 +25,7 @@ function detectKind(file: File): MediaKind {
   return "image";
 }
 
-export function SectionMedia({
-  language,
-  stops,
-  onUpdateStops,
-}: Props) {
+export function SectionMedia({ language, stops, onUpdateStops }: Props) {
   const [qrMap, setQrMap] = useState<Record<string, string>>({});
   const [dragId, setDragId] = useState<number | null>(null);
   const [urlFormId, setUrlFormId] = useState<number | null>(null);
@@ -55,29 +51,24 @@ export function SectionMedia({
     const targetStop = stops.find((s) => s.id === stopId);
     if (!targetStop) return;
 
-    const existing: MediaItem[] = targetStop.media ?? [];
     const added: MediaItem[] = [];
-
     for (let i = 0; i < files.length; i++) {
       const file = files[i];
       try {
         const uploaded = await uploadMedia(file);
-        const mediaUrl = uploaded?.filePath ?? uploaded?.fileUrl ?? "";
-        if (!mediaUrl) throw new Error("No media path returned by API");
-        added.push({ type: detectKind(file), url: mediaUrl });
+        const url = uploaded?.filePath ?? uploaded?.fileUrl ?? "";
+        if (!url) throw new Error("No media path returned");
+        added.push({ type: detectKind(file), url });
       } catch (error) {
-        console.error("Failed to upload media", error);
-        alert(language === "nl" ? "Uploaden van media is mislukt." : "Uploading media failed.");
+        console.error("Failed to upload", error);
+        alert(language === "nl" ? "Uploaden mislukt." : "Upload failed.");
       }
     }
-
     if (added.length === 0) return;
 
     try {
-      const updatedStop = await saveTourStop(stopId, {
-        ...targetStop,
-        media: [...existing, ...added],
-      });
+      const newMedia = [...(targetStop.media ?? []), ...added];
+      const updatedStop = await saveTourStop(stopId, { ...targetStop, media: newMedia });
       onUpdateStops(stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)));
     } catch (error) {
       console.error("Failed to save stop", error);
@@ -89,39 +80,30 @@ export function SectionMedia({
     if (urlFormId == null || !urlForm.url.trim()) return;
     const targetStop = stops.find((s) => s.id === urlFormId);
     if (!targetStop) return;
-
     const newMedia: MediaItem[] = [
       ...(targetStop.media ?? []),
       { type: urlForm.type, url: urlForm.url.trim() },
     ];
-
     try {
       const updatedStop = await saveTourStop(urlFormId, { ...targetStop, media: newMedia });
       onUpdateStops(stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)));
       setUrlFormId(null);
       setUrlForm({ type: "image", url: "" });
     } catch (error) {
-      console.error("Failed to save media URL", error);
-      alert(language === "nl" ? "Opslaan van de media-URL is mislukt." : "Saving the media URL failed.");
+      console.error("Failed to save URL", error);
+      alert(language === "nl" ? "Opslaan mislukt." : "Save failed.");
     }
   };
 
   const remove = async (stop: Stop, index: number) => {
     if (!confirm(language === "nl" ? "Media verwijderen?" : "Remove media?")) return;
-
     const newMedia = (stop.media ?? []).filter((_, i) => i !== index);
-
     try {
-      if (newMedia.length === 0) {
-        await updateStopMedia(stop.id, null);
-        onUpdateStops(stops.map((s) => s.id === stop.id ? { ...s, media: [] } : s));
-      } else {
-        const updatedStop = await saveTourStop(stop.id, { ...stop, media: newMedia });
-        onUpdateStops(stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)));
-      }
+      const updatedStop = await saveTourStop(stop.id, { ...stop, media: newMedia });
+      onUpdateStops(stops.map((s) => (s.id === updatedStop.id ? updatedStop : s)));
     } catch (error) {
       console.error("Failed to remove media", error);
-      alert(language === "nl" ? "Verwijderen van media is mislukt." : "Removing media failed.");
+      alert(language === "nl" ? "Verwijderen mislukt." : "Remove failed.");
     }
   };
 
@@ -132,8 +114,8 @@ export function SectionMedia({
       </h2>
       <p className="text-gray-600 mb-4">
         {language === "nl"
-          ? "Sleep foto's of video's direct naar een stop, of plak een URL. Je kunt meerdere afbeeldingen per stop toevoegen."
-          : "Drag photos or videos directly onto a stop, or paste a URL. You can add multiple images per stop."}
+          ? "Upload meerdere foto's of video's per stop. Sleep ze hierheen of klik op de knop."
+          : "Upload multiple photos or videos per stop. Drag them here or click the button."}
       </p>
 
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -142,10 +124,7 @@ export function SectionMedia({
           const mediaItems = stop.media ?? [];
 
           return (
-            <div
-              key={stop.id}
-              className="border-2 border-gray-200 rounded-xl p-4 bg-white"
-            >
+            <div key={stop.id} className="border-2 border-gray-200 rounded-xl p-4 bg-white">
               {/* Header */}
               <div className="flex items-start gap-3 mb-3">
                 <div className="flex-1 min-w-0">
@@ -197,17 +176,13 @@ export function SectionMedia({
                 </div>
               )}
 
-              {/* Drop zone to add more */}
+              {/* Upload drop zone */}
               <label
                 onDragEnter={(e) => { e.preventDefault(); setDragId(stop.id); }}
                 onDragOver={(e) => { e.preventDefault(); setDragId(stop.id); }}
                 onDragLeave={() => setDragId((prev) => (prev === stop.id ? null : prev))}
-                onDrop={async (e) => {
-                  e.preventDefault();
-                  setDragId(null);
-                  await handleFiles(stop.id, e.dataTransfer.files);
-                }}
-                className={`relative flex items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer px-3 py-3 text-sm transition-colors ${
+                onDrop={async (e) => { e.preventDefault(); setDragId(null); await handleFiles(stop.id, e.dataTransfer.files); }}
+                className={`flex items-center justify-center gap-2 rounded-xl border-2 border-dashed cursor-pointer px-3 py-3 text-sm transition-colors ${
                   isDragging
                     ? "border-[#0066B3] bg-blue-50 text-[#0066B3]"
                     : "border-gray-300 bg-gray-50 text-gray-500 hover:border-[#0066B3] hover:text-[#0066B3]"
@@ -215,9 +190,9 @@ export function SectionMedia({
               >
                 <Plus className="w-4 h-4" />
                 <span>
-                  {language === "nl"
-                    ? mediaItems.length === 0 ? "Foto of video uploaden" : "Nog een toevoegen"
-                    : mediaItems.length === 0 ? "Upload photo or video" : "Add another"}
+                  {mediaItems.length === 0
+                    ? language === "nl" ? "Foto of video uploaden" : "Upload photo or video"
+                    : language === "nl" ? "Nog een toevoegen" : "Add another"}
                 </span>
                 <input
                   type="file"
@@ -228,20 +203,17 @@ export function SectionMedia({
                 />
               </label>
 
-              {/* URL add row */}
+              {/* Footer row */}
               <div className="flex items-center justify-between mt-2">
                 <p className="text-xs text-gray-400">
                   {mediaItems.length > 0
-                    ? language === "nl" ? `${mediaItems.length} item(s)` : `${mediaItems.length} item(s)`
+                    ? `${mediaItems.length} item${mediaItems.length !== 1 ? "s" : ""}`
                     : language === "nl" ? "Geen media" : "No media"}
                 </p>
                 <button
-                  onClick={() => {
-                    setUrlFormId(urlFormId === stop.id ? null : stop.id);
-                    setUrlForm({ type: "image", url: "" });
-                  }}
+                  onClick={() => { setUrlFormId(urlFormId === stop.id ? null : stop.id); setUrlForm({ type: "image", url: "" }); }}
                   className="p-2 text-[#0066B3] hover:bg-blue-50 rounded-lg"
-                  aria-label="URL"
+                  title={language === "nl" ? "URL toevoegen" : "Add URL"}
                 >
                   <LinkIcon className="w-5 h-5" />
                 </button>

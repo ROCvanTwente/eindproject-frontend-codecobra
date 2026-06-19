@@ -20,6 +20,7 @@ export type SectionKey =
   | "tts";
 
 export interface MediaItem {
+  id?: number;
   type: "image" | "video" | "audio";
   url: string;
   duration?: number;
@@ -42,6 +43,7 @@ export interface Stop {
     en: string;
   };
   media?: MediaItem[];
+  qrCodeDbId?: number;
   estimatedDuration: number;
   // Position on the plattegrond in native pixel coordinates (1531 × 704).
   // Optional — stops without a position still appear in the list but not on the map.

@@ -159,9 +159,13 @@ export function mapTourStopResponse(stop) {
   }
 
   const mediaUrl = getValue(stop, ["mediaUrl", "MediaUrl"], "");
+  const qrCodeObj = getValue(stop, ["qrCode", "QRCode"], null);
+  const qrCodeDbId = Number(getValue(stop, ["qrCodeId", "QRCodeId"], 0)) || undefined;
+
   const mapped = {
     id: Number(getValue(stop, ["id", "Id"], 0)),
     qrCode: getQrCodeValue(stop),
+    qrCodeDbId,
     location: {
       nl: String(getValue(stop, ["locationNl", "LocationNl"], "") ?? ""),
       en: String(getValue(stop, ["locationEn", "LocationEn"], "") ?? ""),
@@ -539,6 +543,21 @@ export async function uploadMedia(file, qrCodeId) {
     qrCodeId: qrCodeId ?? null,
   });
   return uploaded;
+}
+
+export async function deleteMedia(mediaId) {
+  const response = await fetch(`${API_BASE_URL}/media/${mediaId}`, {
+    method: "DELETE",
+    headers: {
+      ...getAuthHeaders(),
+    },
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(errorText || "Failed to delete media");
+  }
+  logApiMutation("delete-media", `#${mediaId}`);
 }
 
 export async function updateStopMedia(id, mediaUrl) {
