@@ -7,7 +7,7 @@ import { parseIBeacon } from "../utils/IBeaconParser";
 const BleManagerModule = NativeModules.BleManager;
 const bleManagerEmitter = new NativeEventEmitter(BleManagerModule);
 
-const TARGET_UUID = 'TODO:BC01_UUID'
+const TARGET_MINORS = new Set([19641, 19642, 19643, 19644, 19645]);
 
 export function useBleBeacons() {
     const [closestBeacon, setClosestBeacon] = useState<ParsedBeacon | null>(null);
@@ -56,7 +56,7 @@ export function useBleBeacons() {
 
             const parsed = parseIBeacon(bytes, peripheral.rssi, peripheral.id);
 
-            if (parsed && parsed.uuid === TARGET_UUID) {
+            if (parsed && TARGET_MINORS.has(parsed.minor)) {
                 setBeaconsMap((prevMap) => {
                     const newMap = new Map(prevMap);
                     newMap.set(parsed.id, parsed);
