@@ -35,25 +35,47 @@ export function resolveMediaUrl(filePath: string | null | undefined): string {
   return `${root}${normalizedPath}`;
 }
 
+// A stop's mediaUrl may be a JSON-encoded array of urls (multiple media),
+// a single url string, or empty. Normalize all cases to a list of urls.
+function parseMediaUrls(mediaUrl: string): string[] {
+  const raw = String(mediaUrl ?? "").trim();
+  if (!raw) return [];
+
+  if (raw.startsWith("[")) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed
+          .map((url) => String(url ?? "").trim())
+          .filter((url) => url.length > 0);
+      }
+    } catch {
+      // Fall through and treat the value as a single url.
+    }
+  }
+
+  return [raw];
+}
+
 export function mapTourStopResponse(stop: any) {
   if (!stop) return stop;
 
   // Handles both camelCase and PascalCase from C# backends
   const mediaUrl = stop.mediaUrl ?? stop.MediaUrl ?? "";
 
+  const mediaList: Media[] = parseMediaUrls(mediaUrl).map((url) => ({
+    type: detectMediaKind(url),
+    url,
+  }));
+
   const mapped = {
     ...stop,
     id: Number(stop.id ?? stop.Id ?? 0),
     estimatedDuration: Number(stop.estimatedDuration ?? stop.EstimatedDuration ?? 3),
-    media: undefined as Media | undefined,
+    // Keep `media` as the first item for backwards compatibility.
+    media: mediaList[0],
+    mediaList,
   };
-
-  if (mediaUrl) {
-    mapped.media = {
-      type: detectMediaKind(mediaUrl),
-      url: mediaUrl,
-    };
-  }
 
   return mapped;
 }
