@@ -1,6 +1,5 @@
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import {
-  addHistory,
   AdminSettings,
   loadSettings,
   saveSettings,
@@ -10,7 +9,12 @@ import { AdminPanel } from "./components/AdminPanel";
 import { LoginScreen } from "./components/LoginScreen";
 import { useLocation, useNavigate } from "react-router-dom";
 import { getAllTourStops, mapTourStopResponse } from "../services/api";
-import { flushPendingAuditLogs, logUserAction } from "../services/auditLogger";
+import {
+  clearAuditLogHistory,
+  fetchAuditLogHistory,
+  flushPendingAuditLogs,
+  logUserAction,
+} from "../services/auditLogger";
 import {
   clearSessionData,
   clearTokens,
@@ -30,6 +34,20 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
+  const refreshAuditHistory = useCallback(async () => {
+    try {
+      const history = await fetchAuditLogHistory();
+      setSettings((prev) => ({ ...prev, history }));
+    } catch {
+      setSettings((prev) => ({ ...prev, history: [] }));
+    }
+  }, []);
+
+  const clearAuditHistory = useCallback(async () => {
+    await clearAuditLogHistory();
+    await refreshAuditHistory();
+  }, [refreshAuditHistory]);
+
   const handleUpdateSettings = (
     patch: Partial<AdminSettings>,
     logAction?: { action: string; target: string },
@@ -41,7 +59,6 @@ export default function App() {
           patch.currentSession?.username ??
           prev.currentSession?.username ??
           "anoniem";
-        next = addHistory(next, actor, logAction.action, logAction.target);
         void logUserAction({
           actor,
           action: logAction.action,
@@ -49,6 +66,8 @@ export default function App() {
           metadata: {
             role: prev.currentSession?.role ?? patch.currentSession?.role ?? null,
           },
+        }).finally(() => {
+          void refreshAuditHistory();
         });
       }
       saveSettings(next);
@@ -58,8 +77,19 @@ export default function App() {
 
   useEffect(() => {
     if (!settings.currentSession) return;
-    void flushPendingAuditLogs();
-  }, [settings.currentSession?.username]);
+    void flushPendingAuditLogs().finally(() => {
+      void refreshAuditHistory();
+    });
+  }, [settings.currentSession?.username, refreshAuditHistory]);
+
+  useEffect(() => {
+    if (!settings.currentSession) {
+      setSettings((prev) => ({ ...prev, history: [] }));
+      return;
+    }
+
+    void refreshAuditHistory();
+  }, [refreshAuditHistory, settings.currentSession?.username]);
 
   useEffect(() => {
     let cancelled = false;
@@ -192,6 +222,7 @@ export default function App() {
         onBack={goToLogin}
         settings={settings}
         onUpdateSettings={handleUpdateSettings}
+        onClearHistory={clearAuditHistory}
       />
     );
   }

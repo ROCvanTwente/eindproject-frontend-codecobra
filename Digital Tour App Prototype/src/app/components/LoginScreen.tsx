@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { Link } from "react-router-dom";
-import { AdminSettings, addHistory } from "../data/settings";
+import { AdminSettings } from "../data/settings";
 import { Language, UserSession } from "../types";
 import { getCurrentUserInfo, loginUser } from "../../services/authApi";
 

@@ -17,10 +17,7 @@ import {
 } from "lucide-react";
 import { Stop, Language, SectionKey } from "../types";
 import { StopForm } from "./StopForm";
-import {
-  AdminSettings,
-  addHistory,
-} from "../data/settings";
+import { AdminSettings } from "../data/settings";
 
 import { SectionHome } from "./admin/SectionHome";
 import { SectionStops } from "./admin/SectionStops";
@@ -45,6 +42,7 @@ interface AdminPanelProps {
     patch: Partial<AdminSettings>,
     logAction?: { action: string; target: string },
   ) => void;
+  onClearHistory: () => Promise<void>;
 }
 
 export const SECTION_META: Array<{
@@ -73,6 +71,7 @@ export function AdminPanel({
   onBack,
   settings,
   onUpdateSettings,
+  onClearHistory,
 }: AdminPanelProps) {
   const [section, setSection] = useState<SectionKey>("home");
   const [editingStop, setEditingStop] = useState<Stop | null>(
@@ -260,6 +259,7 @@ export function AdminPanel({
             language={language}
             settings={settings}
             onChange={onUpdateSettings}
+            onClearHistory={onClearHistory}
           />
         );
       case "manualAdmin":

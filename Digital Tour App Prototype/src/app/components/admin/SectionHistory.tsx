@@ -11,6 +11,7 @@ interface Props {
     patch: Partial<AdminSettings>,
     log?: { action: string; target: string },
   ) => void;
+  onClearHistory: () => Promise<void>;
 }
 
 function formatTs(ts: number, language: Language) {
@@ -24,6 +25,7 @@ export function SectionHistory({
   language,
   settings,
   onChange,
+  onClearHistory,
 }: Props) {
   const [confirmClear, setConfirmClear] = useState(false);
   const [successModal, setSuccessModal] = useState<string | null>(null);
@@ -32,12 +34,9 @@ export function SectionHistory({
     setConfirmClear(true);
   };
 
-  const doClear = () => {
+  const doClear = async () => {
     try {
-      onChange(
-        { history: [] },
-        { action: "clear-history", target: "all" },
-      );
+      await onClearHistory();
       setSuccessModal(language === "nl" ? "Geschiedenis gewist." : "History cleared.");
     } catch (err) {
       setErrorModal(language === "nl" ? "Wissen mislukt." : "Clear failed.");
