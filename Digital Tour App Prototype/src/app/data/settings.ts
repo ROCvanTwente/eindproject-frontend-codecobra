@@ -1,5 +1,6 @@
 /**
  * Central store for admin-configurable settings, persisted to localStorage.
+ * History is now loaded from the backend and is not stored locally.
  * All features accessed through the Beheer-systeem read/write via these helpers.
  */
 
@@ -264,7 +265,9 @@ export function loadSettings(): AdminSettings {
   try {
     const raw = window.localStorage.getItem(STORAGE_KEY);
     if (!raw) return DEFAULTS;
-    return { ...DEFAULTS, ...JSON.parse(raw) };
+    const parsed = JSON.parse(raw);
+    const { history: _ignoredHistory, ...rest } = parsed ?? {};
+    return { ...DEFAULTS, ...rest, history: [] };
   } catch {
     return DEFAULTS;
   }
@@ -272,24 +275,7 @@ export function loadSettings(): AdminSettings {
 
 export function saveSettings(s: AdminSettings) {
   try {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+    const { history: _ignoredHistory, ...persisted } = s;
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(persisted));
   } catch {}
-}
-
-export function addHistory(
-  s: AdminSettings,
-  actor: string,
-  action: string,
-  target: string,
-): AdminSettings {
-  const now = Date.now();
-  const entry: HistoryEntry = {
-    id: now,
-    timestamp: now,
-    actor,
-    action,
-    target,
-  };
-  const history = [entry, ...s.history].slice(0, 200);
-  return { ...s, history };
 }
