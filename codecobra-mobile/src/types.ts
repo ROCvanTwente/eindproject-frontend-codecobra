@@ -16,6 +16,10 @@ export interface Stop {
     duration?: number;
     thumbnail?: string;
   };
+  mediaList?: {
+    type: "image" | "video" | "audio";
+    url: string;
+  }[];
   estimatedDuration: number;
   positionX?: number;
   positionY?: number;
