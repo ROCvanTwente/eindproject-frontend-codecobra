@@ -67,6 +67,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [loadingAudio, setLoadingAudio] = useState(false);
   const [speed, setSpeed] = useState<SpeedKey>(settings.textSpeed || "normal");
+  const [mediaIndex, setMediaIndex] = useState(0);
   const scrollRef = useRef<ScrollView>(null);
 
   // Fetch data from API on mount
@@ -79,6 +80,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
       .then((data) => {
         if (isMounted) {
           setStop(data);
+          setMediaIndex(0);
           setFetching(false);
         }
       })
@@ -153,9 +155,23 @@ export function StopDetailScreen({ navigation, route }: Props) {
     navigation.goBack();
   };
 
-  const renderMedia = () => {
-    // CRITICAL FIX: Safe checks added to make sure stop exists before reading property fields
-    if (!stop || !stop.media || !stop.media.url) {
+  // Normalize to a list so a single-media stop still works.
+  const mediaItems: { type: string; url: string }[] =
+    stop?.mediaList?.length ? stop.mediaList : stop?.media ? [stop.media] : [];
+  const hasMultipleMedia = mediaItems.length > 1;
+  const safeMediaIndex = Math.min(mediaIndex, Math.max(mediaItems.length - 1, 0));
+  const activeMedia = mediaItems[safeMediaIndex];
+
+  const showPrevMedia = () => {
+    setMediaIndex((i) => (i - 1 + mediaItems.length) % mediaItems.length);
+  };
+  const showNextMedia = () => {
+    setMediaIndex((i) => (i + 1) % mediaItems.length);
+  };
+
+  const renderMedia = (media: { type: string; url: string } | undefined) => {
+    // CRITICAL FIX: Safe checks added to make sure media exists before reading property fields
+    if (!media || !media.url) {
       return (
         <View style={styles.noMedia}>
           <Text style={styles.noMediaText}>
@@ -165,24 +181,24 @@ export function StopDetailScreen({ navigation, route }: Props) {
       );
     }
 
-    const absoluteMediaUrl = resolveMediaUrl(stop.media.url);
+    const absoluteMediaUrl = resolveMediaUrl(media.url);
 
-    if (stop.media.type === "image") {
+    if (media.type === "image") {
       return (
-        <Image 
-          source={{ uri: absoluteMediaUrl }} 
-          style={styles.mediaImage} 
-          resizeMode="cover" 
+        <Image
+          source={{ uri: absoluteMediaUrl }}
+          style={styles.mediaImage}
+          resizeMode="cover"
         />
       );
     }
 
-    if (stop.media.type === "video") {
-      const sourceUrl = isYouTube(stop.media.url) || isVimeo(stop.media.url)
-        ? getEmbedUrl(stop.media.url)
+    if (media.type === "video") {
+      const sourceUrl = isYouTube(media.url) || isVimeo(media.url)
+        ? getEmbedUrl(media.url)
         : absoluteMediaUrl;
 
-      const htmlContent = isYouTube(stop.media.url) || isVimeo(stop.media.url)
+      const htmlContent = isYouTube(media.url) || isVimeo(media.url)
         ? { uri: sourceUrl }
         : { html: `
             <html style="margin:0;padding:0;background:#000;">
@@ -204,7 +220,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
       );
     }
 
-    if (stop.media.type === "audio") {
+    if (media.type === "audio") {
       return (
         <View style={styles.noMedia}>
           <Ionicons name="musical-notes-outline" size={64} color="#9ca3af" />
@@ -212,7 +228,7 @@ export function StopDetailScreen({ navigation, route }: Props) {
             {language === "nl" ? "Gekoppeld audiobestand:" : "Linked audio guide:"}
           </Text>
           <Text style={{ color: PRIMARY, fontSize: 14, fontWeight: '500' }}>
-            {stop.media.url.split('/').pop()}
+            {media.url.split('/').pop()}
           </Text>
         </View>
       );
@@ -261,7 +277,35 @@ export function StopDetailScreen({ navigation, route }: Props) {
   return (
     <View style={styles.container}>
       <View style={styles.mediaSection}>
-        {renderMedia()}
+        {renderMedia(activeMedia)}
+
+        {hasMultipleMedia && (
+          <>
+            <TouchableOpacity
+              style={[styles.mediaNav, styles.mediaNavLeft]}
+              onPress={showPrevMedia}
+              accessibilityLabel={language === "nl" ? "Vorige media" : "Previous media"}
+            >
+              <Ionicons name="chevron-back" size={26} color={PRIMARY} />
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              style={[styles.mediaNav, styles.mediaNavRight]}
+              onPress={showNextMedia}
+              accessibilityLabel={language === "nl" ? "Volgende media" : "Next media"}
+            >
+              <Ionicons name="chevron-forward" size={26} color={PRIMARY} />
+            </TouchableOpacity>
+
+            <View style={styles.mediaCounterRow} pointerEvents="none">
+              <View style={styles.mediaCounter}>
+                <Text style={styles.mediaCounterText}>
+                  {safeMediaIndex + 1} / {mediaItems.length}
+                </Text>
+              </View>
+            </View>
+          </>
+        )}
 
         <TouchableOpacity style={styles.backBtn} onPress={handleBack}>
           <Ionicons name="arrow-back" size={22} color={PRIMARY} />
@@ -320,14 +364,14 @@ export function StopDetailScreen({ navigation, route }: Props) {
           )}
         </TouchableOpacity>
 
-        <TouchableOpacity
+        {/* <TouchableOpacity
           style={[styles.fab, styles.fabRight]}
           onPress={() =>
             scrollRef.current?.scrollToEnd({ animated: true })
           }
         >
           <Ionicons name="play" size={26} color={PRIMARY} />
-        </TouchableOpacity>
+        </TouchableOpacity> */}
       </View>
     </View>
   );
@@ -378,6 +422,39 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
   },
   badgeText: { color: PRIMARY, fontWeight: "700", fontSize: 16 },
+  mediaNav: {
+    position: "absolute",
+    top: "50%",
+    marginTop: -24,
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    backgroundColor: "rgba(255,255,255,0.9)",
+    borderWidth: 2,
+    borderColor: PRIMARY,
+    alignItems: "center",
+    justifyContent: "center",
+    shadowColor: "#000",
+    shadowOpacity: 0.3,
+    shadowRadius: 6,
+    elevation: 6,
+  },
+  mediaNavLeft: { left: 12 },
+  mediaNavRight: { right: 12 },
+  mediaCounterRow: {
+    position: "absolute",
+    bottom: 12,
+    left: 0,
+    right: 0,
+    alignItems: "center",
+  },
+  mediaCounter: {
+    backgroundColor: "rgba(0,0,0,0.6)",
+    borderRadius: 14,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  mediaCounterText: { color: "#fff", fontWeight: "700", fontSize: 14 },
   textSection: { flex: 1, backgroundColor: "#111827" },
   speedRow: {
     flexDirection: "row",
