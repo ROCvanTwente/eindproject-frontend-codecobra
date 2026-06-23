@@ -61,7 +61,7 @@ function applyPronunciations(
     const pattern = new RegExp(`\\b${escapeRegExp(rule.word)}\\b`, "gi");
     result = result.replace(
       pattern,
-      (match) => `\\{"word": "${match}", "pronounce": "${ipa}"\\}`,
+      (match) => `{"word": "${match}", "pronounce": "${ipa}"}`,
     );
   }
   return result;

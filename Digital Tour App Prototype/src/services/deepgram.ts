@@ -41,7 +41,7 @@ export async function previewPronunciation(
   // Stored IPA may include surrounding slashes (e.g. "/ˈxiːtəraɪ/").
   const cleanIpa = ipa?.replace(/^\/+|\/+$/g, "").trim();
   const text = cleanIpa
-    ? `\\{"word": "${word}", "pronounce": "${cleanIpa}"\\}`
+    ? `{"word": "${word}", "pronounce": "${cleanIpa}"}`
     : word;
 
   const res = await fetch(
